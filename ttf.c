@@ -13,8 +13,8 @@
 #define REQUIRED_TABLE_COUNT \
   (sizeof(required_tables) / sizeof(required_tables[0]))
 
-static uint16_t read_int16(const char *ptr);
-static uint32_t read_int32(const char *ptr);
+static int16_t read_int16(const char *ptr);
+static int32_t read_int32(const char *ptr);
 static int read_head_table(
     const char *table, long table_size, struct font_info *info);
 static int read_maxp_table(
@@ -28,17 +28,16 @@ static int read_hhea_table(
 static int read_hmtx_table(
     const char *table, long table_size, struct font_info *info);
 
-static const char *required_tables[] = {"head", "maxp", "cmap", "hhea", "hmtx"};
+static const char *required_tables[] = {"head", "cmap", "hhea", "hmtx"};
 static int (*required_table_parsers[REQUIRED_TABLE_COUNT])
   (const char *table, long table_size, struct font_info *font) = {
   read_head_table,
-  read_maxp_table,
   read_cmap_table,
   read_hhea_table,
   read_hmtx_table,
 };
 
-static uint16_t
+static int16_t
 read_int16(const char *ptr)
 {
   uint16_t ret;
@@ -47,7 +46,7 @@ read_int16(const char *ptr)
   return ret;
 }
 
-static uint32_t
+static int32_t
 read_int32(const char *ptr)
 {
   uint32_t ret;
@@ -64,15 +63,10 @@ read_head_table(const char *table, long table_size, struct font_info *info)
   if (table_size != 54)
     return 1;
   info->units_per_em = read_int16(table + 18);
-  return 0;
-}
-
-static int
-read_maxp_table(const char *table, long table_size, struct font_info *info)
-{
-  if (table_size < 6)
-    return 1;
-  info->glyph_count = read_int16(table + 4);
+  info->x_min = read_int16(table + 36) * 1000 / info->units_per_em;
+  info->y_min = read_int16(table + 38) * 1000 / info->units_per_em;
+  info->x_max = read_int16(table + 40) * 1000 / info->units_per_em;
+  info->y_max = read_int16(table + 42) * 1000 / info->units_per_em;
   return 0;
 }
 
@@ -89,6 +83,8 @@ read_format4_cmap_subtable(
   seg_count = read_int16(table + 6) / 2;
   if (table_size < 16 + seg_count * 8)
     return 1;
+  for (char_index = 0; char_index < 256; char_index++)
+    info->cmap[char_index] = 0;
   for (range_index = 0; range_index < seg_count; range_index++) {
     uint16_t start, end, glyph_delta, glyph_offset;
     end = read_int16(table + 14 + range_index * 2);
