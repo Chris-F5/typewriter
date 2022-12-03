@@ -4,56 +4,55 @@
 #include <string.h>
 
 #include "ttf.h"
+#include "utils.h"
 
-#define FNAME "fonts/cmu.serif-roman.ttf"
+int read_font_file(const char *fname, struct font_info *info);
+
+int
+read_font_file(const char *fname, struct font_info *info)
+{
+  int ret = 0;
+  long size;
+  FILE *file = NULL;
+  char *ttf = NULL;
+
+  (file = fopen(fname, "r")) OR goto file_error;
+  fseek(file, 0, SEEK_END) == 0 OR goto file_error;
+  (size = ftell(file)) >= 0 OR goto file_error;
+  fseek(file, 0, SEEK_SET) == 0 OR goto file_error;
+  (ttf = malloc(size)) OR goto allocation_error;
+  fread(ttf, 1, size, file) == size OR goto file_error;
+  read_ttf(ttf, size, info) == 0 OR goto ttf_error;
+cleanup:
+  free(ttf);
+  if (file != NULL)
+    fclose(file);
+  return ret;
+file_error:
+  fprintf(stderr, "file error in '%s': %s\n", fname, strerror(errno));
+  ret = 1;
+  goto cleanup;
+allocation_error:
+  perror("failed to allocate memory");
+  ret = 1;
+  goto cleanup;
+ttf_error:
+  fprintf(stderr, "failed to parse ttf '%s'\n", fname);
+  ret = 1;
+  goto cleanup;
+}
 
 int
 main()
 {
-  int ret = 0;
-  FILE *file = NULL;
-  long size;
-  char *ttf = NULL;
-  struct font_info info;
+  struct font_info font_info;
 
-  file = fopen(FNAME, "r");
-  if (file == NULL) {
-    char *err = strerror(errno);
-    fprintf(stderr, "failed to open font file '%s': %s\n", FNAME, err);
-    goto cleanup;
-  }
+  read_font_file("fonts/cmu.serif-roman.ttf", &font_info) == 0 OR return 1;
 
-  errno = 0;
-  fseek(file, 0, SEEK_END);
-  size = ftell(file);
-  fseek(file, 0, SEEK_SET);
-  if (errno) {
-    perror("failed to get length of file");
-    goto cleanup;
-  }
+  printf("font x_min: %d\n", font_info.x_min);
+  printf("font y_min: %d\n", font_info.y_min);
+  printf("font x_max: %d\n", font_info.x_max);
+  printf("font y_max: %d\n", font_info.y_max);
 
-  ttf = malloc(size);
-  if (ttf == NULL) {
-    perror("malloc failed");
-    goto cleanup;
-  }
-
-  if (fread(ttf, 1, size, file) != size) {
-    fprintf(stderr, "failed to read all bytes from file\n");
-    goto cleanup;
-  }
-
-  if (read_ttf(ttf, size, &info) != 0) {
-    fprintf(stderr, "failed to parse ttf\n");
-    goto cleanup;
-  }
-
-  for(int i = 0; i < 256; i++)
-    printf("%d ", info.char_widths[i]);
-  printf("\n");
-
-cleanup:
-  free(ttf);
-  fclose(file);
-  return ret;
+  return 0;
 }

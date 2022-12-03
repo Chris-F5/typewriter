@@ -4,6 +4,7 @@
  */
 
 #include "ttf.h"
+#include "utils.h"
 
 #include <errno.h>
 #include <stdint.h>
@@ -60,8 +61,7 @@ read_int32(const char *ptr)
 static int
 read_head_table(const char *table, long table_size, struct font_info *info)
 {
-  if (table_size != 54)
-    return 1;
+  table_size == 54 OR return 1;
   info->units_per_em = read_int16(table + 18);
   info->x_min = read_int16(table + 36) * 1000 / info->units_per_em;
   info->y_min = read_int16(table + 38) * 1000 / info->units_per_em;
@@ -78,33 +78,36 @@ read_format4_cmap_subtable(
 {
   unsigned int range_index, char_index;
   uint16_t seg_count;
-  if (table_size < 16)
-    return 1;
+  const char *end_codes, *start_codes, *deltas, *offsets, *glyph_index_array;
+  table_size >= 16 OR return 1;
   seg_count = read_int16(table + 6) / 2;
-  if (table_size < 16 + seg_count * 8)
-    return 1;
+  end_codes = table + 14;
+  start_codes = end_codes + seg_count * 2 + 2;
+  deltas = start_codes + seg_count * 2;
+  offsets = deltas + seg_count * 2;
+  glyph_index_array = offsets + seg_count * 2;
+  table_size >= 16 + seg_count * 8 OR return 1;
   for (char_index = 0; char_index < 256; char_index++)
     info->cmap[char_index] = 0;
   for (range_index = 0; range_index < seg_count; range_index++) {
     uint16_t start, end, glyph_delta, glyph_offset;
-    end = read_int16(table + 14 + range_index * 2);
-    start = read_int16(table + 16 + seg_count * 2 + range_index * 2);
+    end = read_int16(end_codes + range_index * 2);
+    start = read_int16(start_codes + range_index * 2);
     if (end > 255) end = 255;
     if (start > 255) break;
-    glyph_delta = read_int16(table + 16 + seg_count * 4 + range_index * 2);
-    glyph_offset = read_int16(table + 16 + seg_count * 6 + range_index * 2);
+    glyph_delta = read_int16(deltas + range_index * 2);
+    glyph_offset = read_int16(offsets + range_index * 2);
     if (glyph_offset == 0) {
       for (char_index = start; char_index <= end; char_index++)
         info->cmap[char_index] = char_index + glyph_delta;
     } else {
-      if(16 + seg_count * 6 + range_index * 2 
-          + glyph_offset 
-          + 2 * (end - start)
-          > table_size)
+      if(offsets + range_index * 2 + glyph_offset 
+          + 2 * (end - start) + 2
+          > table + table_size)
         return 1;
       for (char_index = start; char_index <= end; char_index++)
         info->cmap[char_index] = read_int16(
-          table + 16 + seg_count * 6 + range_index * 2
+          offsets + range_index * 2
           + glyph_offset
           + 2 * (char_index - start));
     }
@@ -117,11 +120,9 @@ read_cmap_table(const char *table, long table_size, struct font_info *info)
 {
   uint16_t subtable_count, format, subtable_size;
   const char *subtable;
-  if (table_size < 4)
-    return 1;
+  table_size >= 4 OR goto invalid;
   subtable_count = read_int16(table + 2);
-  if (table_size < 4 + subtable_count * 8)
-    return 1;
+  table_size >= 4 + subtable_count * 8 OR goto invalid;
   for (subtable = table + 4;
       subtable < table + 4 + subtable_count * 8;
       subtable += 8) {
@@ -135,35 +136,31 @@ read_cmap_table(const char *table, long table_size, struct font_info *info)
       goto found_cmap;
     }
   }
-  fprintf(stderr, "ttf does not include a supported cmap table\n");
-  return 1;
+  goto unsupported;
 found_cmap:
-  if (subtable - table > table_size - 4) {
-    fprintf(stderr, "ttf cmap subtable offset out of bounds\n");
-    return 1;
-  }
+  subtable + 4 <= table + table_size OR goto invalid;
   format = read_int16(subtable);
   subtable_size = read_int16(subtable + 2);
-  if (subtable + subtable_size - table > table_size) {
-    fprintf(stderr, "ttf cmap subtable invalid length\n");
-    return 1;
-  }
-  if (format != 4) {
-    fprintf(stderr, "ttf cmap subtable uses unsupported format %d\n", format);
-    return 1;
-  }
-  if(read_format4_cmap_subtable(subtable, subtable_size, info)) {
-    fprintf(stderr, "failed to read format4 cmap subtable\n");
-    return 1;
-  }
+  subtable + subtable_size <= table + table_size OR goto invalid;
+  format == 4 OR goto unsupported;
+  read_format4_cmap_subtable(subtable, subtable_size, info) == 0
+    OR goto subtable_error;
   return 0;
+invalid:
+  fprintf(stderr, "ttf cmap table invalid\n");
+  return 1;
+unsupported:
+  fprintf(stderr, "ttf cmap table not supported\n");
+  return 1;
+subtable_error:
+  fprintf(stderr, "failed to read ttf cmap subtable\n");
+  return 1;
 }
 
 static int
 read_hhea_table(const char *table, long table_size, struct font_info *info)
 {
-  if (table_size != 36)
-    return 1;
+  table_size == 36 OR return 1;
   info->long_hor_metrics_count = read_int16(table + 34);
   return 0;
 }
@@ -173,10 +170,8 @@ read_hmtx_table(const char *table, long table_size, struct font_info *info)
 {
   int i;
   uint16_t fallback_tt_width;
-  if (table_size < info->long_hor_metrics_count * 4)
-    return 1;
-  if(info->long_hor_metrics_count < 1)
-    return 1;
+  info->long_hor_metrics_count >= 1 OR return 1;
+  table_size >= info->long_hor_metrics_count * 4 OR return 1;
   fallback_tt_width 
     = read_int16(table + 4 * (info->long_hor_metrics_count - 1));
   for (i = 0; i < 256; i++) {
@@ -202,17 +197,12 @@ read_ttf(const char *ttf, long ttf_size, struct font_info *info)
   const char *table_directory;
   const char *table;
 
-  if (ttf_size < 12) {
-    fprintf(stderr, "ttf too short\n");
-    return 1;
-  }
+  ttf_size >= 12 OR goto table_directory_invalid;
   magic_bytes = read_int32(ttf);
-  if (magic_bytes != 0x00010000) {
-    fprintf(stderr, "not a ttf\n");
-    return 1;
-  }
+  magic_bytes == 0x00010000 OR goto not_ttf;
   table_count = read_int16(ttf + 4);
   table_directory = ttf + 12;
+  ttf_size >= 12 + table_count * 16 OR goto table_directory_invalid;
   for (i = 0; i < REQUIRED_TABLE_COUNT; i++)
     required_table_lengths[i] = 0;
   for (table = table_directory;
@@ -229,17 +219,24 @@ read_ttf(const char *ttf, long ttf_size, struct font_info *info)
         required_table_lengths[i] = length;
       }
   }
-  for (i = 0; i < REQUIRED_TABLE_COUNT; i++)
-    if (required_table_lengths[i] == 0) {
-      fprintf(stderr, "ttf does not have a %s table\n", required_tables[i]);
-      return 1;
-    }
-  for (i = 0; i < REQUIRED_TABLE_COUNT; i++)
-    if(required_table_parsers[i](
-          ttf + required_table_offsets[i],
-          required_table_lengths[i], info)) {
-      fprintf(stderr, "failed to read ttf %s table\n", required_tables[i]);
-      return 1;
-    }
+  for (i = 0; i < REQUIRED_TABLE_COUNT; i++) {
+    required_table_lengths[i] OR goto table_no_exist;
+    required_table_parsers[i](ttf + required_table_offsets[i],
+          required_table_lengths[i], info) == 0 OR goto table_error;
+  }
+
   return 0;
+
+not_ttf:
+  fprintf(stderr, "failed to read ttf: not a ttf\n");
+  return 1;
+table_directory_invalid:
+  fprintf(stderr, "ttf table directory invalid\n");
+  return 1;
+table_no_exist:
+  fprintf(stderr, "ttf does not have %s table\n", required_tables[i]);
+  return 1;
+table_error:
+  fprintf(stderr, "failed to read ttf %s table\n", required_tables[i]);
+  return 1;
 }

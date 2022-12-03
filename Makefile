@@ -4,8 +4,8 @@ CFLAGS=-g
 tw: tw.o ttf.o
 	$(CC) $^ -o $@
 
-tw.o: tw.c ttf.h
+tw.o: tw.c ttf.h utils.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
-ttf.o: ttf.c ttf.h
+ttf.o: ttf.c ttf.h utils.h
 	$(CC) $(CFLAGS) -c $< -o $@
