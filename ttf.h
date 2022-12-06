@@ -8,7 +8,7 @@ struct font_info {
   int y_max;
   uint16_t long_hor_metrics_count;
   uint16_t cmap[256];
-  unsigned int char_widths[256];
+  int char_widths[256];
 };
 
 int read_ttf(const char *ttf, long ttf_size, struct font_info *info);

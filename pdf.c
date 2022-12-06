@@ -7,7 +7,15 @@
 
 #define PDF_HEADER "%PDF-1.7\n"
 
+static void hex_encode(const unsigned char *data, long data_size, FILE *file);
 static int set_offset(struct pdf_ctx *pdf, int obj);
+
+static void hex_encode(const unsigned char *data, long data_size, FILE *file)
+{
+  long i;
+  for (i = 0; i < data_size; i++)
+    fprintf(file, "%02x", data[i]);
+}
 
 static int
 set_offset(struct pdf_ctx *pdf, int obj)
@@ -56,17 +64,6 @@ memory_error:
 }
 
 int
-pdf_add_resources(struct pdf_ctx *pdf, int obj)
-{
-  set_offset(pdf, obj) == 0 OR return 1;
-
-  fprintf(pdf->file, "\
-%d 0 obj << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica \
->> >> >> endobj\n", obj);
-  return 0;
-}
-
-int
 pdf_add_stream(struct pdf_ctx *pdf, int obj, const char *stream,
     long stream_length)
 {
@@ -77,6 +74,81 @@ pdf_add_stream(struct pdf_ctx *pdf, int obj, const char *stream,
   fwrite(stream, 1, stream_length, pdf->file);
   fprintf(pdf->file, "\nendstream\nendobj\n");
 
+  return 0;
+}
+
+int
+pdf_add_true_type_program(struct pdf_ctx *pdf, int obj, const char *ttf,
+    long ttf_size)
+{
+  set_offset(pdf, obj) == 0 OR return 1;
+
+  fprintf(pdf->file, "\
+%d 0 obj <<\n\
+  /Filter /ASCIIHexDecode\n\
+  /Length %ld\n\
+  /Length1 %ld\n\
+  >>\nstream\n", obj, ttf_size * 2, ttf_size);
+  hex_encode((unsigned char *)ttf, ttf_size, pdf->file);
+  fprintf(pdf->file, "\nendstream\nendobj\n");
+
+  return 0;
+}
+
+int
+pdf_add_int_array(struct pdf_ctx *pdf, int obj, const int *values, int count)
+{
+  int i;
+  set_offset(pdf, obj) == 0 OR return 1;
+
+  fprintf(pdf->file, "%d 0 obj [\n ", obj);
+  for (i = 0; i < count; i++)
+    fprintf(pdf->file, " %d", values[i]);
+  fprintf(pdf->file, "\n]\nendobj\n");
+  return 0;
+}
+
+int
+pdf_add_resources(struct pdf_ctx *pdf, int obj, int font_widths,
+    int font_descriptor, const char *font_name)
+{
+  set_offset(pdf, obj) == 0 OR return 1;
+
+  fprintf(pdf->file, "\
+%d 0 obj << /Font << /F1 <<\n\
+  /Type /Font\n\
+  /Subtype /TrueType\n\
+  /BaseFont /%s\n\
+  /FirstChar 0\n\
+  /LastChar 255\n\
+  /Widths %d 0 R\n\
+  /FontDescriptor %d 0 R\n\
+  >> >> >> endobj\n", obj, font_name, font_widths, font_descriptor);
+  return 0;
+}
+
+int
+pdf_add_font_descriptor(struct pdf_ctx *pdf, int obj, int font_file,
+    const char *font_name, int flags, int italic_angle, int ascent, int descent,
+    int cap_height, int stem_vertical, int min_x, int min_y, int max_x,
+    int max_y)
+{
+  set_offset(pdf, obj) == 0 OR return 1;
+
+  fprintf(pdf->file, "\
+%d 0 obj <<\n\
+  /Type /FontDescriptor\n\
+  /FontName /%s\n\
+  /FontFile2 %d 0 R\n\
+  /Flags %d\n\
+  /FontBBox [%d, %d, %d, %d]\n\
+  /ItalicAngle %d\n\
+  /Ascent %d\n\
+  /Descent %d\n\
+  /CapHeight %d\n\
+  /StemV %d\n\
+  >> endobj\n", obj, font_name, font_file, flags, min_x, min_y, max_x, max_y,
+      italic_angle, ascent, descent, cap_height, stem_vertical);
   return 0;
 }
 
@@ -95,7 +167,8 @@ pdf_add_page(struct pdf_ctx *pdf, int obj, int parent, int resources,
 }
 
 int
-pdf_add_page_list(struct pdf_ctx *pdf, int obj, int *pages, int page_count)
+pdf_add_page_list(struct pdf_ctx *pdf, int obj, const int *pages,
+    int page_count)
 {
   int i;
   set_offset(pdf, obj) == 0 OR return 1;
