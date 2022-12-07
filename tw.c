@@ -79,41 +79,30 @@ generate_pdf_file(const char *fname, const char *ttf, long ttf_size,
   FILE *file = NULL;
   struct pdf_ctx pdf;
 
-  (file = fopen(fname, "w")) OR goto file_error;
-  pdf_init(&pdf, file) == 0 OR goto pdf_error;
+  ( file = fopen(fname, "w") ) OR goto file_open_error;
+  pdf_init(&pdf, file);
 
-  (font_descriptor = pdf_allocate_obj(&pdf)) >= 0 OR goto pdf_error;
-  (font_widths = pdf_allocate_obj(&pdf)) >= 0 OR goto pdf_error;
-  (font_file = pdf_allocate_obj(&pdf)) >= 0 OR goto pdf_error;
-  (resources = pdf_allocate_obj(&pdf)) >= 0 OR goto pdf_error;
-  (content = pdf_allocate_obj(&pdf)) >= 0 OR goto pdf_error;
-  (page = pdf_allocate_obj(&pdf)) >= 0 OR goto pdf_error;
-  (page_list = pdf_allocate_obj(&pdf)) >= 0 OR goto pdf_error;
-  (catalog = pdf_allocate_obj(&pdf)) >= 0 OR goto pdf_error;
+  font_descriptor = pdf_allocate_obj(&pdf);
+  font_widths = pdf_allocate_obj(&pdf);
+  font_file = pdf_allocate_obj(&pdf);
+  resources = pdf_allocate_obj(&pdf);
+  content = pdf_allocate_obj(&pdf);
+  page = pdf_allocate_obj(&pdf);
+  page_list = pdf_allocate_obj(&pdf);
+  catalog = pdf_allocate_obj(&pdf);
 
-int pdf_add_font_descriptor(struct pdf_ctx *pdf, int obj, int font_file,
-    const char *font_name, int flags, int italic_angle, int ascent, int descent,
-    int cap_height, int stem_vertical, int min_x, int min_y, int max_x,
-    int max_y);
-
+  /* TODO: read this info from ttf. */
   pdf_add_font_descriptor(&pdf, font_descriptor, font_file, "MyFontName", 6,
       -10, 255, 255, 255, 10, ttf_info->x_min, ttf_info->y_min,
-      ttf_info->x_max, ttf_info->y_max)
-    == 0 OR goto pdf_error;
-  pdf_add_int_array(&pdf, font_widths, ttf_info->char_widths, 256)
-    == 0 OR goto pdf_error;
-  pdf_add_true_type_program(&pdf, font_file, ttf, ttf_size)
-    == 0 OR goto pdf_error;
-  pdf_add_resources(&pdf, resources, font_widths, font_descriptor, "MyFontName")
-    == 0 OR goto pdf_error;
-  pdf_add_stream(&pdf, content, content_stream, strlen(content_stream))
-    == 0 OR goto pdf_error;
-  pdf_add_page(&pdf, page, page_list, resources, content)
-    == 0 OR goto pdf_error;
-  pdf_add_page_list(&pdf, page_list, &page, 1)
-    == 0 OR goto pdf_error;
-  pdf_add_catalog(&pdf, catalog, page_list)
-    == 0 OR goto pdf_error;
+      ttf_info->x_max, ttf_info->y_max);
+  pdf_add_int_array(&pdf, font_widths, ttf_info->char_widths, 256);
+  pdf_add_true_type_program(&pdf, font_file, ttf, ttf_size);
+  pdf_add_resources(&pdf, resources, font_widths, font_descriptor,
+      "MyFontName");
+  pdf_add_stream(&pdf, content, content_stream, strlen(content_stream));
+  pdf_add_page(&pdf, page, page_list, resources, content);
+  pdf_add_page_list(&pdf, page_list, &page, 1);
+  pdf_add_catalog(&pdf, catalog, page_list);
 
   pdf_end(&pdf, catalog) == 0 OR goto pdf_error;
 
@@ -121,12 +110,21 @@ cleanup:
   if (file != NULL)
     fclose(file);
   return ret;
-file_error:
-  fprintf(stderr, "file error in '%s': %s\n", fname, strerror(errno));
+file_open_error:
+  fprintf(stderr, "failed to open file '%s': %s\n", fname, strerror(errno));
   ret = 1;
   goto cleanup;
 pdf_error:
-  fprintf(stderr, "error writing pdf '%s'\n", fname);
+  if (pdf.error_flags & PDF_ERROR_FLAG_MEMORY)
+    fprintf(stderr, "failed to allocate memory\n");
+  if (pdf.error_flags & PDF_ERROR_FLAG_FILE)
+    fprintf(stderr, "failed to write to '%s'\n", fname);
+  if (pdf.error_flags & PDF_ERROR_FLAG_INVALID_OBJ)
+    fprintf(stderr, "invalid pdf object number\n");
+  if (pdf.error_flags & PDF_ERROR_FLAG_REPEAT_OBJ)
+    fprintf(stderr, "repeated pdf object number\n");
+  if (pdf.error_flags & PDF_ERROR_FLAG_RESERVED_OBJ)
+    fprintf(stderr, "reserved pdf object number\n");
   ret = 1;
   goto cleanup;
 }

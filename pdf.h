@@ -1,6 +1,13 @@
 #include <stdio.h>
 
+#define PDF_ERROR_FLAG_MEMORY       0b1
+#define PDF_ERROR_FLAG_FILE         0b10
+#define PDF_ERROR_FLAG_INVALID_OBJ  0b100
+#define PDF_ERROR_FLAG_REPEAT_OBJ   0b1000
+#define PDF_ERROR_FLAG_RESERVED_OBJ 0b10000
+
 struct pdf_ctx {
+  int error_flags;
   FILE *file;
   int obj_count;
   int obj_allocated;
