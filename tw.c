@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <string.h>
 
+#include "content.h"
 #include "pdf.h"
 #include "ttf.h"
 #include "utils.h"
@@ -76,11 +77,31 @@ generate_pdf_file(const char *fname, const char *ttf, long ttf_size,
   int ret = 0;
   int font_descriptor, font_widths, font_file, resources, content, page;
   int page_list, catalog;
-  FILE *file = NULL;
+  FILE *pdf_file, *content_file;
   struct pdf_ctx pdf;
+  struct content_section content_section;
+  struct content_line line1, line2, line3;
 
-  ( file = fopen(fname, "w") ) OR goto file_open_error;
-  pdf_init(&pdf, file);
+  pdf_file = content_file = NULL;
+  ( pdf_file = fopen(fname, "w") ) OR goto file_open_error;
+  ( content_file = tmpfile() ) OR goto file_open_error;
+
+  content_section_init(&content_section, 595);
+  line1.font_size = 16;
+  line1.text = "First Line";
+  line2.font_size = 12;
+  line2.text = "Second Line";
+  line3.font_size = 8;
+  line3.text = "Thrid Line";
+  content_section_add_line(&content_section, line1);
+  content_section_add_line(&content_section, line2);
+  content_section_add_line(&content_section, line3);
+  content_section_draw(&content_section, content_file, 0, 842);
+  content_section_destroy(&content_section);
+  if (content_section.error_flags)
+    goto content_error;
+
+  pdf_init(&pdf, pdf_file);
 
   font_descriptor = pdf_allocate_obj(&pdf);
   font_widths = pdf_allocate_obj(&pdf);
@@ -99,19 +120,30 @@ generate_pdf_file(const char *fname, const char *ttf, long ttf_size,
   pdf_add_true_type_program(&pdf, font_file, ttf, ttf_size);
   pdf_add_resources(&pdf, resources, font_widths, font_descriptor,
       "MyFontName");
-  pdf_add_stream(&pdf, content, content_stream, strlen(content_stream));
+  pdf_add_stream(&pdf, content, content_file);
   pdf_add_page(&pdf, page, page_list, resources, content);
   pdf_add_page_list(&pdf, page_list, &page, 1);
   pdf_add_catalog(&pdf, catalog, page_list);
 
-  pdf_end(&pdf, catalog) == 0 OR goto pdf_error;
+  pdf_end(&pdf, catalog);
+  if (pdf.error_flags)
+    goto pdf_error;
 
 cleanup:
-  if (file != NULL)
-    fclose(file);
+  if (pdf_file) fclose(pdf_file);
+  if (content_file) fclose(content_file);
   return ret;
+tmp_file_error:
+  perror("failed to open tempoary file");
+  ret = 1;
+  goto cleanup;
 file_open_error:
   fprintf(stderr, "failed to open file '%s': %s\n", fname, strerror(errno));
+  ret = 1;
+  goto cleanup;
+content_error:
+  if (content_section.error_flags & CONTENT_ERROR_FLAG_MEMORY)
+    fprintf(stderr, "failed to allocate memory\n");
   ret = 1;
   goto cleanup;
 pdf_error:

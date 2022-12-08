@@ -1,13 +1,15 @@
 #ifndef TW_PDF
 #define TW_PDF
 
+
 #include <stdio.h>
 
 #define PDF_ERROR_FLAG_MEMORY       0b1
 #define PDF_ERROR_FLAG_FILE         0b10
-#define PDF_ERROR_FLAG_INVALID_OBJ  0b100
-#define PDF_ERROR_FLAG_REPEAT_OBJ   0b1000
-#define PDF_ERROR_FLAG_RESERVED_OBJ 0b10000
+#define PDF_ERROR_FLAG_STREAM_FILE  0b100
+#define PDF_ERROR_FLAG_INVALID_OBJ  0b1000
+#define PDF_ERROR_FLAG_REPEAT_OBJ   0b10000
+#define PDF_ERROR_FLAG_RESERVED_OBJ 0b100000
 
 struct pdf_ctx {
   int error_flags;
@@ -19,8 +21,7 @@ struct pdf_ctx {
 
 int pdf_init(struct pdf_ctx *pdf, FILE *file);
 int pdf_allocate_obj(struct pdf_ctx *pdf);
-int pdf_add_stream(struct pdf_ctx *pdf, int obj, const char *stream,
-    long stream_length);
+int pdf_add_stream(struct pdf_ctx *pdf, int obj, FILE *stream);
 int pdf_add_true_type_program(struct pdf_ctx *pdf, int obj, const char *ttf,
     long ttf_size);
 int pdf_add_int_array(struct pdf_ctx *pdf, int obj, const int *valeus,

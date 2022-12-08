@@ -82,21 +82,30 @@ pdf_allocate_obj(struct pdf_ctx *pdf)
     }
   }
   pdf->obj_count++;
-  pdf->obj_offsets[obj] = 0;
   return obj;
 }
 
 int
-pdf_add_stream(struct pdf_ctx *pdf, int obj, const char *stream,
-    long stream_length)
+pdf_add_stream(struct pdf_ctx *pdf, int obj, FILE *stream)
 {
   int error_flags;
+  long stream_length;
+  char c;
   if( (error_flags = start_obj(pdf, obj)) )
     return error_flags;
-  pdf->obj_offsets[obj] = ftell(pdf->file);
+  fseek(stream, 0, SEEK_END);
+  stream_length = ftell(stream);
+  fseek(stream, 0, SEEK_SET);
   fprintf(pdf->file, "<< /Length %ld >>\nstream\n", stream_length);
-  fwrite(stream, 1, stream_length, pdf->file);
+  while ( (c = getc(stream)) != EOF)
+      putc(c, pdf->file);
   fprintf(pdf->file, "\nendstream\nendobj\n");
+
+  if (ferror(stream)) {
+    pdf->error_flags |= PDF_ERROR_FLAG_STREAM_FILE;
+    return PDF_ERROR_FLAG_STREAM_FILE;
+  }
+
   return 0;
 }
 
@@ -108,7 +117,6 @@ pdf_add_true_type_program(struct pdf_ctx *pdf, int obj, const char *ttf,
   long i;
   if( (error_flags = start_obj(pdf, obj)) )
     return error_flags;
-  pdf->obj_offsets[obj] = ftell(pdf->file);
   fprintf(pdf->file, "<<\n\
   /Filter /ASCIIHexDecode\n\
   /Length %ld\n\
@@ -126,7 +134,6 @@ pdf_add_int_array(struct pdf_ctx *pdf, int obj, const int *values, int count)
   int error_flags, i;
   if( (error_flags = start_obj(pdf, obj)) )
     return error_flags;
-  pdf->obj_offsets[obj] = ftell(pdf->file);
   fprintf(pdf->file, "[\n ");
   for (i = 0; i < count; i++)
     fprintf(pdf->file, " %d", values[i]);
@@ -142,7 +149,6 @@ pdf_add_resources(struct pdf_ctx *pdf, int obj, int font_widths,
   int error_flags;
   if( (error_flags = start_obj(pdf, obj)) )
     return error_flags;
-  pdf->obj_offsets[obj] = ftell(pdf->file);
   fprintf(pdf->file, "<</Font << /F1 <<\n\
   /Type /Font\n\
   /Subtype /TrueType\n\
@@ -164,7 +170,6 @@ pdf_add_font_descriptor(struct pdf_ctx *pdf, int obj, int font_file,
   int error_flags;
   if( (error_flags = start_obj(pdf, obj)) )
     return error_flags;
-  pdf->obj_offsets[obj] = ftell(pdf->file);
   fprintf(pdf->file, "<<\n\
   /Type /FontDescriptor\n\
   /FontName /%s\n\
@@ -188,7 +193,6 @@ pdf_add_page(struct pdf_ctx *pdf, int obj, int parent, int resources,
   int error_flags;
   if( (error_flags = start_obj(pdf, obj)) )
     return error_flags;
-  pdf->obj_offsets[obj] = ftell(pdf->file);
   fprintf(pdf->file, "<<\n\
   /Type /Page\n\
   /Resources %d 0 R\n\
@@ -205,7 +209,6 @@ pdf_add_page_list(struct pdf_ctx *pdf, int obj, const int *pages,
   int error_flags, i;
   if( (error_flags = start_obj(pdf, obj)) )
     return error_flags;
-  pdf->obj_offsets[obj] = ftell(pdf->file);
   /* 595x842 is a portrait A4 page. */
   fprintf(pdf->file, "<<\n\
   /Type /Pages\n\
@@ -226,7 +229,6 @@ pdf_add_catalog(struct pdf_ctx *pdf, int obj, int page_list)
   int error_flags;
   if( (error_flags = start_obj(pdf, obj)) )
     return error_flags;
-  pdf->obj_offsets[obj] = ftell(pdf->file);
   fprintf(pdf->file, "<<\n\
   /Type /Catalog\n\
   /Pages %d 0 R\n\
