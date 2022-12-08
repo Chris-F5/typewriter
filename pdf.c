@@ -69,8 +69,8 @@ pdf_allocate_obj(struct pdf_ctx *pdf)
     pdf->error_flags |= PDF_ERROR_FLAG_MEMORY;
     return -1;
   }
-  obj = pdf->obj_count++;
-  while (obj >= pdf->obj_allocated) {
+  obj = pdf->obj_count;
+  while (pdf->obj_count >= pdf->obj_allocated) {
     pdf->obj_offsets
       = realloc(pdf->obj_offsets, sizeof(long) * (pdf->obj_allocated + 100));
     if (pdf->obj_offsets) {
@@ -81,6 +81,7 @@ pdf_allocate_obj(struct pdf_ctx *pdf)
       return -1;
     }
   }
+  pdf->obj_count++;
   pdf->obj_offsets[obj] = 0;
   return obj;
 }
