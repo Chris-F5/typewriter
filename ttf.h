@@ -1,3 +1,6 @@
+#ifndef TW_TTF_H
+#define TW_TTF_H
+
 #include <stdint.h>
 
 struct font_info {
@@ -12,3 +15,5 @@ struct font_info {
 };
 
 int read_ttf(const char *ttf, long ttf_size, struct font_info *info);
+
+#endif

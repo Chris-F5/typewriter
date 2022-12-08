@@ -1,3 +1,6 @@
+#ifndef TW_PDF
+#define TW_PDF
+
 #include <stdio.h>
 
 #define PDF_ERROR_FLAG_MEMORY       0b1
@@ -34,3 +37,5 @@ int pdf_add_page_list(struct pdf_ctx *pdf, int obj, const int *pages,
     int page_count);
 int pdf_add_catalog(struct pdf_ctx *pdf, int obj, int page_list);
 int pdf_end(struct pdf_ctx *pdf, int root_obj);
+
+#endif
