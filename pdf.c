@@ -1,9 +1,7 @@
-#include "pdf.h"
+#include "tw.h"
 
 #include <stdlib.h>
 #include <string.h>
-
-#include "utils.h"
 
 #define PDF_HEADER "%PDF-1.7\n"
 

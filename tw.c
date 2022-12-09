@@ -3,12 +3,9 @@
 #include <errno.h>
 #include <string.h>
 
-#include "content.h"
-#include "pdf.h"
-#include "ttf.h"
-#include "utils.h"
+#include "tw.h"
 
-static char * file_to_bytes(const char *fname, long *size);
+static char *file_to_bytes(const char *fname, long *size);
 static int read_font_file(const char *fname, struct font_info *info);
 static int generate_pdf_file(const char *fname, const char *ttf, long ttf_size,
     const struct font_info *ttf_info);

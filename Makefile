@@ -4,14 +4,14 @@ CFLAGS=-g
 tw: tw.o ttf.o pdf.o content.o
 	$(CC) $^ -o $@
 
-tw.o: tw.c ttf.h utils.h pdf.h
+tw.o: tw.c tw.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
-pdf.o: pdf.c pdf.h utils.h
+pdf.o: pdf.c tw.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
-ttf.o: ttf.c ttf.h utils.h
+ttf.o: ttf.c tw.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
-content.o: content.c content.h
+content.o: content.c tw.h
 	$(CC) $(CFLAGS) -c $< -o $@

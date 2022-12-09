@@ -3,10 +3,8 @@
  * https://developer.apple.com/fonts/TrueType-Reference-Manual/
  */
 
-#include "ttf.h"
-#include "utils.h"
+#include "tw.h"
 
-#include <errno.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
