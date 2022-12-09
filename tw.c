@@ -90,8 +90,6 @@ generate_pdf_file(const char *fname, const char *ttf, long ttf_size,
   content_section_add_line(&content_section, line3);
   content_section_draw(&content_section, content_file, 0, 842);
   content_section_destroy(&content_section);
-  if (content_section.error_flags)
-    goto content_error;
 
   pdf_init(&pdf, pdf_file);
 
@@ -118,8 +116,6 @@ generate_pdf_file(const char *fname, const char *ttf, long ttf_size,
   pdf_add_catalog(&pdf, catalog, page_list);
 
   pdf_end(&pdf, catalog);
-  if (pdf.error_flags)
-    goto pdf_error;
 
 cleanup:
   if (pdf_file) fclose(pdf_file);
@@ -131,24 +127,6 @@ tmp_file_error:
   goto cleanup;
 file_open_error:
   fprintf(stderr, "failed to open file '%s': %s\n", fname, strerror(errno));
-  ret = 1;
-  goto cleanup;
-content_error:
-  if (content_section.error_flags & CONTENT_ERROR_FLAG_MEMORY)
-    fprintf(stderr, "failed to allocate memory\n");
-  ret = 1;
-  goto cleanup;
-pdf_error:
-  if (pdf.error_flags & PDF_ERROR_FLAG_MEMORY)
-    fprintf(stderr, "failed to allocate memory\n");
-  if (pdf.error_flags & PDF_ERROR_FLAG_FILE)
-    fprintf(stderr, "failed to write to '%s'\n", fname);
-  if (pdf.error_flags & PDF_ERROR_FLAG_INVALID_OBJ)
-    fprintf(stderr, "invalid pdf object number\n");
-  if (pdf.error_flags & PDF_ERROR_FLAG_REPEAT_OBJ)
-    fprintf(stderr, "repeated pdf object number\n");
-  if (pdf.error_flags & PDF_ERROR_FLAG_RESERVED_OBJ)
-    fprintf(stderr, "reserved pdf object number\n");
   ret = 1;
   goto cleanup;
 }

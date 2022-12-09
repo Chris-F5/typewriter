@@ -222,9 +222,7 @@ read_ttf(const char *ttf, long ttf_size, struct font_info *info)
     required_table_parsers[i](ttf + required_table_offsets[i],
           required_table_lengths[i], info) == 0 OR goto table_error;
   }
-
   return 0;
-
 not_ttf:
   fprintf(stderr, "failed to read ttf: not a ttf\n");
   return 1;
