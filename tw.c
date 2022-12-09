@@ -8,14 +8,6 @@
 #include "ttf.h"
 #include "utils.h"
 
-static const char *content_stream = "\
-0.7 0.7 1 rg\n\
-0 811 30 30 re f\n\
-80 700 30 30 re f\n\
-0 0 0 rg\n\
-BT /F1 12 Tf 2 770 Td (Hello World!)Tj ET\n\
-BT /F1 16 Tf 2 754 Td (Notice how each character has its own width.)Tj ET";
-
 static char * file_to_bytes(const char *fname, long *size);
 static int read_font_file(const char *fname, struct font_info *info);
 static int generate_pdf_file(const char *fname, const char *ttf, long ttf_size,
@@ -88,10 +80,13 @@ generate_pdf_file(const char *fname, const char *ttf, long ttf_size,
 
   content_section_init(&content_section, 595);
   line1.font_size = 16;
-  line1.text = "First Line";
+  line1.word_spacing = 0;
+  line1.text = "First Line () \\ \\n ((()))\\))\n...";
   line2.font_size = 12;
+  line2.word_spacing = 5;
   line2.text = "Second Line";
   line3.font_size = 8;
+  line3.word_spacing = 10;
   line3.text = "Thrid Line";
   content_section_add_line(&content_section, line1);
   content_section_add_line(&content_section, line2);

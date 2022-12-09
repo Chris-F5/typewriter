@@ -7,6 +7,7 @@
 
 struct content_line {
   int font_size;
+  int word_spacing;
   char *text;
 };
 
