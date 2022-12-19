@@ -2,19 +2,36 @@
 #include <stdio.h>
 
 #define OR ? (errno = 0) : (errno = errno ? errno : -1); if (errno)
+#define SYMBOL_STACK_PAGE_SIZE 1024
 
-struct content_line {
-  int font_size;
-  int word_spacing;
-  char *text;
+enum symbol_type {
+  SYMBOL_NONE = 0,
+  SYMBOL_DOCUMENT,
+  SYMBOL_PARAGRAPH,
+  SYMBOL_REGULAR_WORD,
+  SYMBOL_BOLD_WORD,
 };
 
-struct content_section {
-  int width;
-  int line_spacing;
-  int line_count;
-  int line_allocated;
-  struct content_line *lines;
+struct entity {
+  int w, h;
+  int child_count;
+  struct entity *children;
+};
+
+struct symbol {
+  int type;
+  int str_len;
+  const char *str;
+  struct symbol *children;
+  struct symbol *next_sibling;
+};
+
+struct symbol_stack {
+  int page_full;
+  struct symbol_stack_page {
+    struct symbol_stack_page *below;
+    struct symbol symbols[SYMBOL_STACK_PAGE_SIZE];
+  } *top_page;
 };
 
 struct font_info {
@@ -35,17 +52,13 @@ struct pdf_ctx {
   long *obj_offsets;
 };
 
-/* content.c */
-void content_section_init(struct content_section *section, int width);
-void content_section_add_line(struct content_section *section,
-    struct content_line line);
-void content_section_draw(struct content_section *section, FILE *stream, int x,
-    int y);
-void content_section_destroy(struct content_section *section);
-
 /* error.c */
 void *xmalloc(size_t len);
 void *xrealloc(void *p, size_t len);
+
+/* parse.c */
+void print_symbol_tree(struct symbol* sym, int indent);
+struct symbol *parse_document(const char *document, struct symbol_stack *stack);
 
 /* pdf.c */
 void pdf_init(struct pdf_ctx *pdf, FILE *file);

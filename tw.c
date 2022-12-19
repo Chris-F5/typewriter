@@ -20,7 +20,7 @@ file_to_bytes(const char *fname, long *size)
   fseek(file, 0, SEEK_END) == 0 OR goto file_error;
   (*size = ftell(file)) >= 0 OR goto file_error;
   fseek(file, 0, SEEK_SET) == 0 OR goto file_error;
-  (bytes = malloc(*size)) OR goto allocation_error;
+  (bytes = malloc(*size + 1)) OR goto allocation_error;
   fread(bytes, 1, *size, file) == *size OR goto file_error;
   
 cleanup:
@@ -68,28 +68,16 @@ generate_pdf_file(const char *fname, const char *ttf, long ttf_size,
   int page_list, catalog;
   FILE *pdf_file, *content_file;
   struct pdf_ctx pdf;
-  struct content_section content_section;
-  struct content_line line1, line2, line3;
 
   pdf_file = content_file = NULL;
   ( pdf_file = fopen(fname, "w") ) OR goto file_open_error;
   ( content_file = tmpfile() ) OR goto file_open_error;
 
-  content_section_init(&content_section, 595);
-  line1.font_size = 16;
-  line1.word_spacing = 0;
-  line1.text = "First Line () \\ \\n ((()))\\))\n...";
-  line2.font_size = 12;
-  line2.word_spacing = 5;
-  line2.text = "Second Line";
-  line3.font_size = 8;
-  line3.word_spacing = 10;
-  line3.text = "Thrid Line";
-  content_section_add_line(&content_section, line1);
-  content_section_add_line(&content_section, line2);
-  content_section_add_line(&content_section, line3);
-  content_section_draw(&content_section, content_file, 0, 842);
-  content_section_destroy(&content_section);
+  fprintf(content_file, "\
+0 0 0 rg\n\
+BT /F1 16 Tf 0 Tw 0 826 Td (First Line)Tj ET\n\
+BT /F1 12 Tf 5 Tw 0 814 Td (Second Line)Tj ET\n\
+BT /F1 8 Tf 10 Tw 0 806 Td (Thrid Line)Tj ET");
 
   pdf_init(&pdf, pdf_file);
 
@@ -103,13 +91,12 @@ generate_pdf_file(const char *fname, const char *ttf, long ttf_size,
   catalog = pdf_allocate_obj(&pdf);
 
   /* TODO: read this info from ttf. */
-  pdf_add_font_descriptor(&pdf, font_descriptor, font_file, "MyFontName", 6,
+  pdf_add_font_descriptor(&pdf, font_descriptor, font_file, "MyFont", 6,
       -10, 255, 255, 255, 10, ttf_info->x_min, ttf_info->y_min,
       ttf_info->x_max, ttf_info->y_max);
   pdf_add_int_array(&pdf, font_widths, ttf_info->char_widths, 256);
   pdf_add_true_type_program(&pdf, font_file, ttf, ttf_size);
-  pdf_add_resources(&pdf, resources, font_widths, font_descriptor,
-      "MyFontName");
+  pdf_add_resources(&pdf, resources, font_widths, font_descriptor, "MyFont");
   pdf_add_stream(&pdf, content, content_file);
   pdf_add_page(&pdf, page, page_list, resources, content);
   pdf_add_page_list(&pdf, page_list, &page, 1);
@@ -134,9 +121,17 @@ file_open_error:
 int
 main()
 {
-  char *ttf;
-  long ttf_size;
+  char *ttf, *document;
+  long ttf_size, document_size;
   struct font_info font_info;
+  struct symbol_stack sym_stack;
+  struct symbol *root_sym;
+
+  document = file_to_bytes("input.txt", &document_size);
+  document[document_size] = '\0';
+  root_sym = parse_document(document, &sym_stack);
+  if (root_sym)
+    print_symbol_tree(root_sym, 0);
 
   ( ttf = file_to_bytes("fonts/cmu.serif-roman.ttf", &ttf_size) ) OR return 1;
   read_ttf(ttf, ttf_size, &font_info) == 0 OR return 1;
@@ -146,11 +141,10 @@ main()
   printf("font x_max: %d\n", font_info.x_max);
   printf("font y_max: %d\n", font_info.y_max);
 
-  ttf OR free(ttf);
-  ( ttf = file_to_bytes("fonts/cmu.serif-roman.ttf", &ttf_size) ) OR return 1;
   generate_pdf_file("output.pdf", ttf, ttf_size, &font_info) == 0 OR return 1;
 
+  free(document);
+  free(ttf);
   printf("DONE\n");
-  ttf OR free(ttf);
   return 0;
 }
