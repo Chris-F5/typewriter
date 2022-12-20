@@ -4,125 +4,95 @@
 #include <stdlib.h>
 #include <string.h>
 
-enum parse_types {
-  PARSE_PATTERN,
-  PARSE_OR,
+enum sym_parser_names {
+  PARSER_ROOT,
+  PARSER_PARAGRAPH,
+  PARSER_REGULAR_WORD,
+  PARSER_BOLD_WORD,
+};
+
+enum parser_opcodes {
+  /* primitives */
+  PARSE_CHAR,
+  PARSE_CHAR_RANGE,
+  PARSE_SYMBOL,
+  /* pattern */
+  PARSE_CHOICE,
+  PARSE_SEQ,
   PARSE_SOME,
+  PARSE_ANY,
+  PARSE_OPTIONAL,
+  /* misc */
+  PARSE_STRING,
+  PARSE_END = -256
 };
 
-enum token_names {
-  TOKEN_ROOT,
-  TOKEN_PARAGRAPH,
-  TOKEN_ANY_WORD,
-  TOKEN_REGULAR_WORD,
-  TOKEN_BOLD_WORD,
+struct symbol_parser {
+  int symbol;
+  int *parser;
 };
 
-struct parser {
-  int type, symbol;
-  char *start, *middle, *end;
-  struct parser **parsers;
+struct parser_error {
+  const char *location;
 };
 
-static int set_match(const char **set, char c);
-static const char *pattern_match(const char *pattern, const char *input);
 static struct symbol *push_symbol(struct symbol_stack *stack);
 static void pop_symbol(struct symbol_stack *stack);
-static const char *parse(struct parser *parser, const char *input,
-    struct symbol *sym, struct symbol_stack *stack);
+void parse(const int **parser, const char **input, struct symbol *sym,
+    struct symbol_stack *stack, struct parser_error *error);
 
-struct parser parsers[] = {
-  [TOKEN_ROOT] = {
-    PARSE_SOME, SYMBOL_DOCUMENT,
-    "*\n", "*\n", "*[ \n]",
-    (struct parser *[]) {
-      &parsers[TOKEN_PARAGRAPH],
+const struct symbol_parser symbol_parsers[] = {
+  [PARSER_ROOT] = {
+    SYMBOL_DOCUMENT,
+    (int []) {
+      PARSE_SEQ,
+        PARSE_ANY, PARSE_CHAR, '\n',
+        PARSE_ANY, PARSE_SEQ,
+          PARSE_SYMBOL, PARSER_PARAGRAPH,
+          PARSE_SOME, PARSE_CHAR, '\n',
+        PARSE_END,
+        PARSE_ANY, PARSE_CHAR, '\n',
+      PARSE_END,
     }
   },
-  [TOKEN_PARAGRAPH] = {
-    PARSE_SOME, SYMBOL_PARAGRAPH,
-    "", "* ?\n", "",
-    (struct parser *[]) {
-      &parsers[TOKEN_ANY_WORD],
+  [PARSER_PARAGRAPH] = {
+    SYMBOL_PARAGRAPH,
+    (int []) {
+      PARSE_SOME, PARSE_SEQ,
+        PARSE_CHOICE,
+          PARSE_SYMBOL, PARSER_BOLD_WORD,
+          PARSE_SYMBOL, PARSER_REGULAR_WORD,
+        PARSE_END,
+        PARSE_CHOICE,
+          PARSE_SEQ,
+            PARSE_ANY, PARSE_CHAR, ' ',
+            PARSE_CHAR, '\n',
+          PARSE_END,
+          PARSE_SOME, PARSE_CHAR, ' ',
+        PARSE_END,
+      PARSE_END,
     }
   },
-  [TOKEN_ANY_WORD] = {
-    PARSE_OR, 0,
-    "", "", "",
-    (struct parser *[]) {
-      &parsers[TOKEN_BOLD_WORD],
-      &parsers[TOKEN_REGULAR_WORD],
-      NULL
+  [PARSER_REGULAR_WORD] = {
+    SYMBOL_REGULAR_WORD,
+    (int []) {
+      PARSE_STRING, PARSE_SOME, PARSE_CHAR_RANGE, '!', '~',
     }
   },
-  [TOKEN_REGULAR_WORD] = {
-    PARSE_PATTERN, SYMBOL_REGULAR_WORD,
-    "", "-!~*-!~", "",
-    NULL
-  },
-  [TOKEN_BOLD_WORD] = {
-    PARSE_PATTERN, SYMBOL_BOLD_WORD,
-    "\\*", "-!~*-!~", "\\*",
-    NULL
+  [PARSER_BOLD_WORD] = {
+    SYMBOL_BOLD_WORD,
+    (int []) {
+      PARSE_SEQ,
+        PARSE_CHAR, '*',
+        PARSE_STRING, PARSE_SOME, PARSE_CHOICE,
+          PARSE_CHAR_RANGE, '!', ')',
+          PARSE_CHAR_RANGE, '+', '~',
+        PARSE_END,
+        PARSE_CHAR, '*',
+      PARSE_END,
+    }
   },
 };
-
-static int
-set_match(const char **set, char c)
-{
-  char start, end;
-  int match;
-  switch (**set) {
-  case '\\':
-    (*set)++;
-    return c == *(*set)++;
-  case '-':
-    (*set)++;
-    start = *(*set)++;
-    end = *(*set)++;
-    return c >= start && c <= end;
-  case '[':
-    (*set)++;
-    match = 0;
-    while (**set != ']')
-      if (set_match(set, c)) match = 1;
-    (*set)++;
-    return match;
-  default:
-    return c == *(*set)++;
-  }
-}
-
-/* If pattern contains an error, behaviour is undefined. */
-static const char *
-pattern_match(const char *pattern, const char *input)
-{
-  const char *base;
-  if (input == NULL) return NULL;
-  while (*pattern) {
-    switch (*pattern) {
-    case '*':
-      base = pattern++;
-      if (set_match(&pattern, *input)) {
-        input++;
-        pattern = base;
-      }
-      break;
-    case '?':
-      pattern++;
-      if (set_match(&pattern, *input))
-        input++;
-      break;
-    default:
-      if (set_match(&pattern, *input))
-        input++;
-      else
-        return NULL;
-      break;
-    }
-  }
-  return input;
-}
 
 static struct symbol *
 push_symbol(struct symbol_stack *stack)
@@ -163,73 +133,142 @@ free_symbol_stack(struct symbol_stack *stack)
   }
 }
 
-static const char *
-parse(struct parser *parser, const char *input, struct symbol *sym,
-    struct symbol_stack *stack)
+void
+parse(const int **parser, const char **input, struct symbol *sym,
+    struct symbol_stack *stack, struct parser_error *error)
 {
-  struct parser **child_parser;
-  const char *parse_result;
-  struct symbol **next_sym;
-  int symbols_pushed;
-  if (input == NULL) return NULL;
-  switch (parser->type) {
-    case PARSE_PATTERN:
-      sym->type = parser->symbol;
-      sym->children = NULL;
-      input = pattern_match(parser->start, input);
-      sym->str = input;
-      input = pattern_match(parser->middle, input);
-      sym->str_len = input - sym->str;
-      input = pattern_match(parser->end, input);
-      return input;
-    case PARSE_OR:
-      for (
-          child_parser = parser->parsers;
-          *child_parser != NULL;
-          child_parser += 1) {
-        parse_result = parse(*child_parser, input, sym, stack);
-        if (parse_result) return parse_result;
-      }
-      return NULL;
-    case PARSE_SOME:
-      sym->type = parser->symbol;
-      sym->str_len = 0;
-      sym->str = NULL;
-      next_sym = &sym->children;
-      input = pattern_match(parser->start, input);
-      symbols_pushed = 0;
-      for (;;) {
-        *next_sym = push_symbol(stack);
-        symbols_pushed++;
-        parse_result = parse(parser->parsers[0], input, *next_sym, stack);
-        if (parse_result == NULL) {
-          pop_symbol(stack);
-          symbols_pushed--;
-          break;
-        }
-        input = parse_result;
-        next_sym = &((**next_sym).next_sibling);
+  int opcode;
+  const char *base_input, *new_input;
+  const int *base_parser, *new_parser;
+  struct symbol *new_sym;
+  const struct symbol_parser *new_sym_parser;
 
-        parse_result = pattern_match(parser->middle, input);
-        if (parse_result == NULL)
-          break;
-        input = parse_result;
+  opcode = *(*parser)++;
+  switch (opcode) {
+
+  case PARSE_CHAR:
+    if (!*input) {
+      (*parser) += 1;
+      break;
+    }
+    if (**input == *(*parser)++) {
+      (*input)++;
+    } else {
+      if (error)
+        error->location = *input;
+      *input = NULL;
+    }
+    break;
+
+  case PARSE_CHAR_RANGE:
+    if (!*input) {
+      (*parser) += 2;
+      break;
+    }
+    if (**input >= (*parser)[0] && **input <= (*parser)[1]) {
+      (*input)++;
+    } else {
+      if (error)
+        error->location = *input;
+      *input = NULL;
+    }
+    (*parser) += 2;
+    break;
+
+  case PARSE_SYMBOL:
+    if (!*input) {
+      (*parser)++;
+      break;
+    }
+    new_sym_parser = &symbol_parsers[*(*parser)++];
+    new_sym = push_symbol(stack);
+    new_sym->type = new_sym_parser->symbol;
+    new_sym->str_len = 0;
+    new_sym->str = NULL;
+    new_sym->child_first = NULL;
+    new_sym->child_last = NULL;
+    new_sym->next_sibling = NULL;
+    new_parser = new_sym_parser->parser;
+    parse(&new_parser, input, new_sym, stack, error);
+    if (!*input) {
+      pop_symbol(stack);
+      break;
+    }
+    if (sym->child_last)
+      sym->child_last = sym->child_last->next_sibling = new_sym;
+    else
+      sym->child_first = sym->child_last = new_sym;
+    break;
+
+  case PARSE_SEQ:
+    while (**parser != PARSE_END)
+      parse(parser, input, sym, stack, error);
+    (*parser)++;
+    break;
+
+  case PARSE_CHOICE:
+    base_input = *input;
+    new_input = NULL;
+    while (**parser != PARSE_END) {
+      parse(parser, input, sym, stack, NULL);
+      if (*input) {
+        new_input = *input;
+        *input = NULL;
+      } else {
+        *input = base_input;
       }
-      *next_sym = NULL;
-      input = pattern_match(parser->end, input);
-      if (sym->children == NULL) {
-        for (; symbols_pushed; symbols_pushed--)
-          pop_symbol(stack);
-        return NULL;
-      }
-      return input;
-    default:
-      fprintf(stderr, "Invalid parser type!\n");
-      return NULL;
+    }
+    (*parser)++;
+    *input = new_input;
+    if (*input == NULL && error)
+      error->location = base_input;
+    break;
+
+  case PARSE_SOME:
+    base_parser = *parser;
+    parse(parser, input, sym, stack, error);
+    if (!*input)
+      break;
+    do {
+      *parser = base_parser;
+      base_input = *input;
+      parse(parser, input, sym, stack, NULL);
+    } while(*input);
+    *input = base_input;
+    break;
+
+  case PARSE_ANY:
+    base_parser = *parser;
+    do {
+      *parser = base_parser;
+      base_input = *input;
+      parse(parser, input, sym, stack, NULL);
+    } while(*input);
+    *input = base_input;
+    break;
+
+  case PARSE_OPTIONAL:
+    base_input = *input;
+    parse(parser, input, sym, stack, NULL);
+    if (!*input)
+      *input = base_input;
+    break;
+
+  case PARSE_STRING:
+    base_input = *input;
+    parse(parser, input, sym, stack, error);
+    sym->str = base_input;
+    sym->str_len = *input - base_input;
+    break;
+
+  default:
+    fprintf(stderr, "Unrecognised parse opcode! %d\n", opcode);
+    break;
   }
 }
 
-void print_symbol_tree(struct symbol* sym, int indent)
+void
+print_symbol_tree(struct symbol* sym, int indent)
 {
   int i;
   for (i = 0; i < indent; i++) putchar(' ');
@@ -241,7 +280,7 @@ void print_symbol_tree(struct symbol* sym, int indent)
     putchar('"');
     putchar('\n');
   }
-  sym = sym->children;
+  sym = sym->child_first;
   while (sym) {
     print_symbol_tree(sym, indent + 1);
     sym = sym->next_sibling;
@@ -252,20 +291,33 @@ struct symbol *
 parse_document(const char *document, struct symbol_stack *stack)
 {
   struct symbol *root_sym;
+  struct parser_error *parser_error;
+  const char *input;
+  const int *parser;
+
+  parser_error->location = NULL;
 
   stack->page_full = 0;
   stack->top_page = xmalloc(sizeof(struct symbol_stack_page));
   stack->top_page->below = NULL;
 
+  input = document;
+  parser = symbol_parsers[PARSER_ROOT].parser;
   root_sym = push_symbol(stack);
-  document = parse(&parsers[TOKEN_ROOT], document, root_sym, stack);
-  if (document == NULL) {
-    fprintf(stderr, "Failed to parse document.\n");
+  root_sym->type = symbol_parsers[PARSER_ROOT].symbol;
+  root_sym->str_len = 0;
+  root_sym->str = 0;
+  root_sym->child_first = NULL;
+  root_sym->child_last = NULL;
+  root_sym->next_sibling = NULL;
+  parse(&parser, &input, root_sym, stack, parser_error);
+  if (!input) {
+    fprintf(stderr, "Failed to parse document. %s\n", parser_error->location);
     return NULL;
   }
-  if (*document != '\0') {
-    fprintf(stderr, "Failed to parse all document: %s\n", document);
-    fprintf(stderr, "Failed to parse all document: %d\n", *document);
+  if (*input != '\0') {
+    fprintf(stderr,
+        "Failed to parse document at: \n== START ==\n%s=== END ===\n", input);
     return NULL;
   }
   return root_sym;

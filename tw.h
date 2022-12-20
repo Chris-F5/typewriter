@@ -22,7 +22,8 @@ struct symbol {
   int type;
   int str_len;
   const char *str;
-  struct symbol *children;
+  struct symbol *child_first;
+  struct symbol *child_last;
   struct symbol *next_sibling;
 };
 
