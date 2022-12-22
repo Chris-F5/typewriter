@@ -36,10 +36,8 @@ struct parser_error {
   const char *location;
 };
 
-static struct symbol *push_symbol(struct symbol_stack *stack);
-static void pop_symbol(struct symbol_stack *stack);
-void parse(const int **parser, const char **input, struct symbol *sym,
-    struct symbol_stack *stack, struct parser_error *error);
+static void parse(const int **parser, const char **input, struct symbol *sym,
+    struct stack *sym_stack, struct parser_error *error);
 
 const struct symbol_parser symbol_parsers[] = {
   [PARSER_ROOT] = {
@@ -94,48 +92,9 @@ const struct symbol_parser symbol_parsers[] = {
   },
 };
 
-static struct symbol *
-push_symbol(struct symbol_stack *stack)
-{
-  struct symbol_stack_page *new_page;
-  if (stack->page_full == SYMBOL_STACK_PAGE_SIZE) {
-    new_page = xmalloc(sizeof(struct symbol_stack_page));
-    new_page->below = stack->top_page;
-    stack->top_page = new_page;
-    stack->page_full = 0;
-  }
-  return &stack->top_page->symbols[stack->page_full++];
-}
-
 static void
-pop_symbol(struct symbol_stack *stack)
-{
-  struct symbol_stack_page *old_page;
-  if (stack->page_full == 0) {
-    old_page = stack->top_page;
-    stack->top_page = stack->top_page->below;
-    if (stack->top_page == NULL)
-      fprintf(stderr, "Can't pop from empty symbol stack.");
-    free(old_page);
-    stack->page_full = SYMBOL_STACK_PAGE_SIZE;
-  }
-  stack->page_full--;
-}
-
-static void
-free_symbol_stack(struct symbol_stack *stack)
-{
-  struct symbol_stack_page *old_page;
-  while (stack->top_page) {
-    old_page = stack->top_page;
-    stack->top_page = stack->top_page->below;
-    free(old_page);
-  }
-}
-
-void
 parse(const int **parser, const char **input, struct symbol *sym,
-    struct symbol_stack *stack, struct parser_error *error)
+    struct stack *sym_stack, struct parser_error *error)
 {
   int opcode;
   const char *base_input, *new_input;
@@ -181,7 +140,7 @@ parse(const int **parser, const char **input, struct symbol *sym,
       break;
     }
     new_sym_parser = &symbol_parsers[*(*parser)++];
-    new_sym = push_symbol(stack);
+    new_sym = stack_push(sym_stack);
     new_sym->type = new_sym_parser->symbol;
     new_sym->str_len = 0;
     new_sym->str = NULL;
@@ -189,9 +148,9 @@ parse(const int **parser, const char **input, struct symbol *sym,
     new_sym->child_last = NULL;
     new_sym->next_sibling = NULL;
     new_parser = new_sym_parser->parser;
-    parse(&new_parser, input, new_sym, stack, error);
+    parse(&new_parser, input, new_sym, sym_stack, error);
     if (!*input) {
-      pop_symbol(stack);
+      stack_pop(sym_stack);
       break;
     }
     if (sym->child_last)
@@ -202,7 +161,7 @@ parse(const int **parser, const char **input, struct symbol *sym,
 
   case PARSE_SEQ:
     while (**parser != PARSE_END)
-      parse(parser, input, sym, stack, error);
+      parse(parser, input, sym, sym_stack, error);
     (*parser)++;
     break;
 
@@ -210,7 +169,7 @@ parse(const int **parser, const char **input, struct symbol *sym,
     base_input = *input;
     new_input = NULL;
     while (**parser != PARSE_END) {
-      parse(parser, input, sym, stack, NULL);
+      parse(parser, input, sym, sym_stack, NULL);
       if (*input) {
         new_input = *input;
         *input = NULL;
@@ -226,13 +185,13 @@ parse(const int **parser, const char **input, struct symbol *sym,
 
   case PARSE_SOME:
     base_parser = *parser;
-    parse(parser, input, sym, stack, error);
+    parse(parser, input, sym, sym_stack, error);
     if (!*input)
       break;
     do {
       *parser = base_parser;
       base_input = *input;
-      parse(parser, input, sym, stack, NULL);
+      parse(parser, input, sym, sym_stack, NULL);
     } while(*input);
     *input = base_input;
     break;
@@ -242,21 +201,21 @@ parse(const int **parser, const char **input, struct symbol *sym,
     do {
       *parser = base_parser;
       base_input = *input;
-      parse(parser, input, sym, stack, NULL);
+      parse(parser, input, sym, sym_stack, NULL);
     } while(*input);
     *input = base_input;
     break;
 
   case PARSE_OPTIONAL:
     base_input = *input;
-    parse(parser, input, sym, stack, NULL);
+    parse(parser, input, sym, sym_stack, NULL);
     if (!*input)
       *input = base_input;
     break;
 
   case PARSE_STRING:
     base_input = *input;
-    parse(parser, input, sym, stack, error);
+    parse(parser, input, sym, sym_stack, error);
     sym->str = base_input;
     sym->str_len = *input - base_input;
     break;
@@ -288,7 +247,7 @@ print_symbol_tree(struct symbol* sym, int indent)
 }
 
 struct symbol *
-parse_document(const char *document, struct symbol_stack *stack)
+parse_document(const char *document, struct stack *sym_stack)
 {
   struct symbol *root_sym;
   struct parser_error *parser_error;
@@ -297,20 +256,16 @@ parse_document(const char *document, struct symbol_stack *stack)
 
   parser_error->location = NULL;
 
-  stack->page_full = 0;
-  stack->top_page = xmalloc(sizeof(struct symbol_stack_page));
-  stack->top_page->below = NULL;
-
   input = document;
   parser = symbol_parsers[PARSER_ROOT].parser;
-  root_sym = push_symbol(stack);
+  root_sym = stack_push(sym_stack);
   root_sym->type = symbol_parsers[PARSER_ROOT].symbol;
   root_sym->str_len = 0;
   root_sym->str = 0;
   root_sym->child_first = NULL;
   root_sym->child_last = NULL;
   root_sym->next_sibling = NULL;
-  parse(&parser, &input, root_sym, stack, parser_error);
+  parse(&parser, &input, root_sym, sym_stack, parser_error);
   if (!input) {
     fprintf(stderr, "Failed to parse document. %s\n", parser_error->location);
     return NULL;

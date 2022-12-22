@@ -124,15 +124,23 @@ main()
   char *ttf, *document;
   long ttf_size, document_size;
   struct font_info font_info;
-  struct symbol_stack sym_stack;
+  struct stack sym_stack;
   struct symbol *root_sym;
 
   document = file_to_bytes("input.txt", &document_size);
   document[document_size] = '\0';
+
+  stack_init(&sym_stack, 1024, sizeof(struct symbol));
   root_sym = parse_document(document, &sym_stack);
   if (root_sym)
     print_symbol_tree(root_sym, 0);
 
+  stack_free(&sym_stack);
+  free(document);
+  printf("DONE\n");
+  return 0;
+
+  /*
   ( ttf = file_to_bytes("fonts/cmu.serif-roman.ttf", &ttf_size) ) OR return 1;
   read_ttf(ttf, ttf_size, &font_info) == 0 OR return 1;
 
@@ -142,9 +150,6 @@ main()
   printf("font y_max: %d\n", font_info.y_max);
 
   generate_pdf_file("output.pdf", ttf, ttf_size, &font_info) == 0 OR return 1;
-
-  free(document);
   free(ttf);
-  printf("DONE\n");
-  return 0;
+  */
 }

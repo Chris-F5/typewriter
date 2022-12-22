@@ -2,7 +2,6 @@
 #include <stdio.h>
 
 #define OR ? (errno = 0) : (errno = errno ? errno : -1); if (errno)
-#define SYMBOL_STACK_PAGE_SIZE 1024
 
 enum symbol_type {
   SYMBOL_NONE = 0,
@@ -10,12 +9,6 @@ enum symbol_type {
   SYMBOL_PARAGRAPH,
   SYMBOL_REGULAR_WORD,
   SYMBOL_BOLD_WORD,
-};
-
-struct entity {
-  int w, h;
-  int child_count;
-  struct entity *children;
 };
 
 struct symbol {
@@ -27,13 +20,22 @@ struct symbol {
   struct symbol *next_sibling;
 };
 
-struct symbol_stack {
-  int page_full;
-  struct symbol_stack_page {
-    struct symbol_stack_page *below;
-    struct symbol symbols[SYMBOL_STACK_PAGE_SIZE];
+struct stack {
+  int item_size, page_size, height;
+  struct stack_page {
+    struct stack_page *below;
+    char data[];
   } *top_page;
 };
+
+/*
+struct layout_node {
+  int w, h;
+  struct layout_node *child_first;
+  struct layout_node *child_last;
+  struct layout_node *next_sibling;
+};
+*/
 
 struct font_info {
   int units_per_em;
@@ -57,9 +59,15 @@ struct pdf_ctx {
 void *xmalloc(size_t len);
 void *xrealloc(void *p, size_t len);
 
+/* stack.c */
+void stack_init(struct stack *stack, int page_size, int item_size);
+void *stack_push(struct stack *stack);
+void stack_pop(struct stack *stack);
+void stack_free(struct stack *stack);
+
 /* parse.c */
 void print_symbol_tree(struct symbol* sym, int indent);
-struct symbol *parse_document(const char *document, struct symbol_stack *stack);
+struct symbol *parse_document(const char *document, struct stack *sym_stack);
 
 /* pdf.c */
 void pdf_init(struct pdf_ctx *pdf, FILE *file);
