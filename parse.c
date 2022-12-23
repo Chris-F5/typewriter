@@ -230,7 +230,7 @@ void
 print_symbol_tree(struct symbol* sym, int indent)
 {
   int i;
-  for (i = 0; i < indent; i++) putchar(' ');
+  for (i = 0; i < indent * 2; i++) putchar(' ');
   printf("%d\n", sym->type);
   if (sym->str) {
     for (i = 0; i < indent * 2; i++) putchar(' ');

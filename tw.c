@@ -124,19 +124,27 @@ main()
   char *ttf, *document;
   long ttf_size, document_size;
   struct font_info font_info;
-  struct stack sym_stack;
+  struct stack sym_stack, style_stack;
   struct symbol *root_sym;
+  struct style_node *root_style;
 
   document = file_to_bytes("input.txt", &document_size);
   document[document_size] = '\0';
 
   stack_init(&sym_stack, 1024, sizeof(struct symbol));
+  stack_init(&style_stack, 1024, sizeof(struct style_node));
+
   root_sym = parse_document(document, &sym_stack);
-  if (root_sym)
-    print_symbol_tree(root_sym, 0);
+  if (!root_sym) return 1;
+  print_symbol_tree(root_sym, 0);
+  root_style = create_style_tree(root_sym, &style_stack);
+  if (!root_style) return 1;
+  print_style_tree(root_style, 0);
 
   stack_free(&sym_stack);
+  stack_free(&style_stack);
   free(document);
+
   printf("DONE\n");
   return 0;
 
