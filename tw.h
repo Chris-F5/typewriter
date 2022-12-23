@@ -52,6 +52,11 @@ struct layout_box {
   struct layout_box *next_sibling;
 };
 
+struct content {
+  int allocated, length;
+  char *str;
+};
+
 struct font_info {
   int units_per_em;
   int x_min;
@@ -90,9 +95,14 @@ struct style_node *create_style_tree(const struct symbol *root_sym,
     struct stack *style_node_stack);
 
 /* layout.c */
-void print_layout_tree(const struct layout_box *layout, int indent);
+void print_layout_tree(const struct layout_box *box, int indent);
 struct layout_box *layout_pages(const struct style_node *root_style_node,
     struct stack *layout_stack);
+
+/* paint.c */
+void content_init(struct content *content);
+void content_free(struct content *content);
+void paint_content(const struct layout_box *layout, struct content *content);
 
 /* ttf.c */
 int read_ttf(const char *ttf, long ttf_size, struct font_info *info);
@@ -100,7 +110,8 @@ int read_ttf(const char *ttf, long ttf_size, struct font_info *info);
 /* pdf.c */
 void pdf_init(struct pdf_ctx *pdf, FILE *file);
 int pdf_allocate_obj(struct pdf_ctx *pdf);
-void pdf_add_stream(struct pdf_ctx *pdf, int obj, FILE *stream);
+void pdf_add_content(struct pdf_ctx *pdf, int obj,
+    const struct content *content);
 void pdf_add_true_type_program(struct pdf_ctx *pdf, int obj, const char *ttf,
     long ttf_size);
 void pdf_add_int_array(struct pdf_ctx *pdf, int obj, const int *valeus,

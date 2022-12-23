@@ -121,6 +121,6 @@ layout_pages(const struct style_node *root_style_node,
   page = layout(596, 842, path, layout_stack);
   page->x = 0;
   page->y = 0;
+  page->height = 842;
   return page;
 }
-

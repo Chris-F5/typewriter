@@ -8,7 +8,7 @@
 static char *file_to_bytes(const char *fname, long *size);
 static int read_font_file(const char *fname, struct font_info *info);
 static int generate_pdf_file(const char *fname, const char *ttf, long ttf_size,
-    const struct font_info *ttf_info);
+    const struct font_info *ttf_info, const struct content *content);
 
 static char *
 file_to_bytes(const char *fname, long *size)
@@ -61,57 +61,46 @@ ttf_error:
 
 static int
 generate_pdf_file(const char *fname, const char *ttf, long ttf_size,
-    const struct font_info *ttf_info)
+    const struct font_info *ttf_info, const struct content *content)
 {
   int ret = 0;
-  int font_descriptor, font_widths, font_file, resources, content, page;
-  int page_list, catalog;
-  FILE *pdf_file, *content_file;
+  int obj_font_descriptor, obj_font_widths, obj_font_file, obj_resources,
+      obj_content, obj_page, obj_page_list, obj_catalog;
+  FILE *pdf_file;
   struct pdf_ctx pdf;
 
-  pdf_file = content_file = NULL;
+  pdf_file = NULL;
   ( pdf_file = fopen(fname, "w") ) OR goto file_open_error;
-  ( content_file = tmpfile() ) OR goto file_open_error;
-
-  fprintf(content_file, "\
-0 0 0 rg\n\
-BT /F1 16 Tf 0 Tw 0 826 Td (First Line)Tj ET\n\
-BT /F1 12 Tf 5 Tw 0 814 Td (Second Line)Tj ET\n\
-BT /F1 8 Tf 10 Tw 0 806 Td (Thrid Line)Tj ET");
 
   pdf_init(&pdf, pdf_file);
 
-  font_descriptor = pdf_allocate_obj(&pdf);
-  font_widths = pdf_allocate_obj(&pdf);
-  font_file = pdf_allocate_obj(&pdf);
-  resources = pdf_allocate_obj(&pdf);
-  content = pdf_allocate_obj(&pdf);
-  page = pdf_allocate_obj(&pdf);
-  page_list = pdf_allocate_obj(&pdf);
-  catalog = pdf_allocate_obj(&pdf);
+  obj_font_descriptor = pdf_allocate_obj(&pdf);
+  obj_font_widths = pdf_allocate_obj(&pdf);
+  obj_font_file = pdf_allocate_obj(&pdf);
+  obj_resources = pdf_allocate_obj(&pdf);
+  obj_content = pdf_allocate_obj(&pdf);
+  obj_page = pdf_allocate_obj(&pdf);
+  obj_page_list = pdf_allocate_obj(&pdf);
+  obj_catalog = pdf_allocate_obj(&pdf);
 
   /* TODO: read this info from ttf. */
-  pdf_add_font_descriptor(&pdf, font_descriptor, font_file, "MyFont", 6,
+  pdf_add_font_descriptor(&pdf, obj_font_descriptor, obj_font_file, "MyFont", 6,
       -10, 255, 255, 255, 10, ttf_info->x_min, ttf_info->y_min,
       ttf_info->x_max, ttf_info->y_max);
-  pdf_add_int_array(&pdf, font_widths, ttf_info->char_widths, 256);
-  pdf_add_true_type_program(&pdf, font_file, ttf, ttf_size);
-  pdf_add_resources(&pdf, resources, font_widths, font_descriptor, "MyFont");
-  pdf_add_stream(&pdf, content, content_file);
-  pdf_add_page(&pdf, page, page_list, resources, content);
-  pdf_add_page_list(&pdf, page_list, &page, 1);
-  pdf_add_catalog(&pdf, catalog, page_list);
+  pdf_add_int_array(&pdf, obj_font_widths, ttf_info->char_widths, 256);
+  pdf_add_true_type_program(&pdf, obj_font_file, ttf, ttf_size);
+  pdf_add_resources(&pdf, obj_resources, obj_font_widths, obj_font_descriptor,
+      "MyFont");
+  pdf_add_content(&pdf, obj_content, content);
+  pdf_add_page(&pdf, obj_page, obj_page_list, obj_resources, obj_content);
+  pdf_add_page_list(&pdf, obj_page_list, &obj_page, 1);
+  pdf_add_catalog(&pdf, obj_catalog, obj_page_list);
 
-  pdf_end(&pdf, catalog);
+  pdf_end(&pdf, obj_catalog);
 
 cleanup:
   if (pdf_file) fclose(pdf_file);
-  if (content_file) fclose(content_file);
   return ret;
-tmp_file_error:
-  perror("failed to open tempoary file");
-  ret = 1;
-  goto cleanup;
 file_open_error:
   fprintf(stderr, "failed to open file '%s': %s\n", fname, strerror(errno));
   ret = 1;
@@ -128,6 +117,10 @@ main()
   struct symbol *root_sym;
   struct style_node *root_style;
   struct layout_box *root_layout;
+  struct content content;
+
+  ( ttf = file_to_bytes("fonts/cmu.serif-roman.ttf", &ttf_size) ) OR return 1;
+  read_ttf(ttf, ttf_size, &font_info) == 0 OR return 1;
 
   document = file_to_bytes("input.txt", &document_size);
   document[document_size] = '\0';
@@ -135,6 +128,7 @@ main()
   stack_init(&sym_stack, 1024, sizeof(struct symbol));
   stack_init(&style_stack, 1024, sizeof(struct style_node));
   stack_init(&layout_stack, 1024, sizeof(struct layout_box));
+  content_init(&content);
 
   root_sym = parse_document(document, &sym_stack);
   if (!root_sym) return 1;
@@ -145,17 +139,18 @@ main()
   root_layout = layout_pages(root_style, &layout_stack);
   if (!root_layout) return 1;
   print_layout_tree(root_layout, 0);
+  paint_content(root_layout, &content);
+  generate_pdf_file("output.pdf", ttf, ttf_size, &font_info, &content);
 
   stack_free(&sym_stack);
   stack_free(&style_stack);
+  content_free(&content);
   free(document);
 
   printf("DONE\n");
   return 0;
 
   /*
-  ( ttf = file_to_bytes("fonts/cmu.serif-roman.ttf", &ttf_size) ) OR return 1;
-  read_ttf(ttf, ttf_size, &font_info) == 0 OR return 1;
 
   printf("font x_min: %d\n", font_info.x_min);
   printf("font y_min: %d\n", font_info.y_min);

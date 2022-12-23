@@ -42,17 +42,12 @@ pdf_allocate_obj(struct pdf_ctx *pdf)
 }
 
 void
-pdf_add_stream(struct pdf_ctx *pdf, int obj, FILE *stream)
+pdf_add_content(struct pdf_ctx *pdf, int obj, const struct content *content)
 {
-  long stream_length;
   char c;
   start_obj(pdf, obj);
-  fseek(stream, 0, SEEK_END);
-  stream_length = ftell(stream);
-  fseek(stream, 0, SEEK_SET);
-  fprintf(pdf->file, "<< /Length %ld >>\nstream\n", stream_length);
-  while ( (c = getc(stream)) != EOF)
-      putc(c, pdf->file);
+  fprintf(pdf->file, "<< /Length %d >>\nstream\n", content->length);
+  fwrite(content->str, 1, content->length, pdf->file);
   fprintf(pdf->file, "\nendstream\nendobj\n");
 }
 
