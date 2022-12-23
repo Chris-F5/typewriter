@@ -250,11 +250,11 @@ struct symbol *
 parse_document(const char *document, struct stack *sym_stack)
 {
   struct symbol *root_sym;
-  struct parser_error *parser_error;
+  struct parser_error parser_error;
   const char *input;
   const int *parser;
 
-  parser_error->location = NULL;
+  parser_error.location = NULL;
 
   input = document;
   parser = symbol_parsers[PARSER_ROOT].parser;
@@ -265,9 +265,9 @@ parse_document(const char *document, struct stack *sym_stack)
   root_sym->child_first = NULL;
   root_sym->child_last = NULL;
   root_sym->next_sibling = NULL;
-  parse(&parser, &input, root_sym, sym_stack, parser_error);
+  parse(&parser, &input, root_sym, sym_stack, &parser_error);
   if (!input) {
-    fprintf(stderr, "Failed to parse document. %s\n", parser_error->location);
+    fprintf(stderr, "Failed to parse document. %s\n", parser_error.location);
     return NULL;
   }
   if (*input != '\0') {
