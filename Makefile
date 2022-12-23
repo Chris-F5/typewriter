@@ -1,7 +1,7 @@
 CC=gcc
 CFLAGS=-g
 
-tw: tw.o error.o stack.o parse.o style.o ttf.o pdf.o content.o
+tw: tw.o error.o stack.o parse.o style.o layout.o ttf.o pdf.o content.o
 	$(CC) $^ -o $@
 
 tw.o: tw.c tw.h
@@ -17,6 +17,9 @@ parse.o: parse.c tw.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 style.o: style.c tw.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+layout.o: layout.c tw.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 ttf.o: ttf.c tw.h

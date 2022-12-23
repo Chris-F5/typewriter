@@ -11,6 +11,14 @@ enum symbol_type {
   SYMBOL_BOLD_WORD,
 };
 
+struct stack {
+  int item_size, page_size, height;
+  struct stack_page {
+    struct stack_page *below;
+    char data[];
+  } *top_page;
+};
+
 struct symbol {
   int type;
   int str_len;
@@ -20,22 +28,29 @@ struct symbol {
   struct symbol *next_sibling;
 };
 
-struct stack {
-  int item_size, page_size, height;
-  struct stack_page {
-    struct stack_page *below;
-    char data[];
-  } *top_page;
+struct style {
+  int margin_top, margin_bottom, margin_left, margin_right;
+  int font_size;
 };
 
-/*
-struct layout_node {
-  int w, h;
-  struct layout_node *child_first;
-  struct layout_node *child_last;
-  struct layout_node *next_sibling;
+struct style_node {
+  struct style style;
+  int str_len;
+  const char *str;
+  struct style_node *child_first;
+  struct style_node *child_last;
+  struct style_node *next_sibling;
 };
-*/
+
+struct layout_box {
+  int x, y;
+  int width, height;
+  int str_len;
+  const char *str;
+  struct layout_box *child_first;
+  struct layout_box *child_last;
+  struct layout_box *next_sibling;
+};
 
 struct font_info {
   int units_per_em;
@@ -69,6 +84,19 @@ void stack_free(struct stack *stack);
 void print_symbol_tree(struct symbol* sym, int indent);
 struct symbol *parse_document(const char *document, struct stack *sym_stack);
 
+/* style.c */
+void print_style_tree(struct style_node* style_node, int indent);
+struct style_node *create_style_tree(const struct symbol *root_sym,
+    struct stack *style_node_stack);
+
+/* layout.c */
+void print_layout_tree(const struct layout_box *layout, int indent);
+struct layout_box *layout_pages(const struct style_node *root_style_node,
+    struct stack *layout_stack);
+
+/* ttf.c */
+int read_ttf(const char *ttf, long ttf_size, struct font_info *info);
+
 /* pdf.c */
 void pdf_init(struct pdf_ctx *pdf, FILE *file);
 int pdf_allocate_obj(struct pdf_ctx *pdf);
@@ -89,6 +117,3 @@ void pdf_add_page_list(struct pdf_ctx *pdf, int obj, const int *pages,
     int page_count);
 void pdf_add_catalog(struct pdf_ctx *pdf, int obj, int page_list);
 void pdf_end(struct pdf_ctx *pdf, int root_obj);
-
-/* ttf.c */
-int read_ttf(const char *ttf, long ttf_size, struct font_info *info);

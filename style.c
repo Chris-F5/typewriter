@@ -1,5 +1,8 @@
 #include "tw.h"
 
+static struct style_node *style_symbol(const struct symbol *sym,
+    struct stack *style_node_stack);
+
 static struct style symbol_styles[] = {
   [SYMBOL_DOCUMENT] = {
     0, 0, 0, 0,
