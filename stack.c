@@ -42,6 +42,24 @@ stack_pop(struct stack *stack)
 }
 
 void
+stack_push_pointer(struct stack *stack, void *ptr)
+{
+  *(void**)stack_push(stack) = ptr;
+}
+
+void *
+stack_pop_pointer(struct stack *stack)
+{
+  void *ptr;
+  if (stack->height <= 0)
+    return NULL;
+  ptr = *((void **)stack->top_page->data 
+    + stack->item_size * ((stack->height - 1) % stack->page_size));
+  stack_pop(stack);
+  return ptr;
+}
+
+void
 stack_free(struct stack *stack)
 {
   struct stack_page *old_page;

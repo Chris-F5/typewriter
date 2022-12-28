@@ -11,6 +11,12 @@ enum symbol_type {
   SYMBOL_BOLD_WORD,
 };
 
+enum layout_type {
+  LAYOUT_VERTICAL,
+  LAYOUT_HORIZONTAL,
+  LAYOUT_WORD,
+};
+
 struct stack {
   int item_size, page_size, height;
   struct stack_page {
@@ -29,12 +35,13 @@ struct symbol {
 };
 
 struct style {
-  int margin_top, margin_bottom, margin_left, margin_right;
+  int display_type;
+  int padding_top, padding_bottom, padding_left, padding_right;
   int font_size;
 };
 
 struct style_node {
-  struct style style;
+  const struct style *style;
   int str_len;
   const char *str;
   struct style_node *child_first;
@@ -83,6 +90,8 @@ void *xrealloc(void *p, size_t len);
 void stack_init(struct stack *stack, int page_size, int item_size);
 void *stack_push(struct stack *stack);
 void stack_pop(struct stack *stack);
+void stack_push_pointer(struct stack *stack, void *ptr);
+void *stack_pop_pointer(struct stack *stack);
 void stack_free(struct stack *stack);
 
 /* parse.c */
@@ -96,8 +105,8 @@ struct style_node *create_style_tree(const struct symbol *root_sym,
 
 /* layout.c */
 void print_layout_tree(const struct layout_box *box, int indent);
-struct layout_box *layout_pages(const struct style_node *root_style_node,
-    struct stack *layout_stack);
+struct layout_box *layout_pages(struct style_node *root_style_node,
+    struct stack *layout_stack, const struct font_info *font);
 
 /* paint.c */
 void content_init(struct content *content);

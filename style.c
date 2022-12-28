@@ -1,48 +1,93 @@
 #include "tw.h"
 
-static struct style_node *style_symbol(const struct symbol *sym,
-    struct stack *style_node_stack);
+struct symbol_style_mapping {
+  struct style style;
+  struct symbol_style_mapping *child;
+};
 
-static struct style symbol_styles[] = {
+static struct style_node *symbol_to_style(const struct symbol *sym,
+    struct stack *style_node_stack, const struct symbol_style_mapping *mapping);
+
+static const struct symbol_style_mapping symbol_style_map[] = {
   [SYMBOL_DOCUMENT] = {
-    0, 0, 0, 0,
-    0,
+    {
+      LAYOUT_VERTICAL,
+      20, 20, 20, 20,
+      0,
+    },
+    NULL
   },
   [SYMBOL_PARAGRAPH] = {
-    0, 0, 0, 0,
-    0,
+    { /* paragraph */
+      LAYOUT_VERTICAL,
+      0, 20, 0, 0,
+      0,
+    },
+    &(struct symbol_style_mapping){
+      { /* line */
+        LAYOUT_HORIZONTAL,
+        0, 5, 0, 0,
+        0,
+      },
+      NULL
+    }
   },
   [SYMBOL_REGULAR_WORD] = {
-    0, 0, 0, 0,
-    12,
+    {
+      LAYOUT_WORD,
+      0, 0, 0, 4,
+      12,
+    },
+    NULL
   },
   [SYMBOL_BOLD_WORD] = {
-    0, 0, 0, 0,
-    12,
+    {
+      LAYOUT_WORD,
+      0, 0, 0, 4,
+      12,
+    },
+    NULL
   },
 };
 
 static struct style_node *
-style_symbol(const struct symbol *sym, struct stack *style_node_stack)
+symbol_to_style(const struct symbol *sym, struct stack *style_node_stack,
+    const struct symbol_style_mapping *mapping)
 {
   struct style_node *style_node;
   const struct symbol *sym_child;
+  struct style_node *child_node;
+
   style_node = stack_push(style_node_stack);
-  style_node->style = symbol_styles[sym->type];
+  style_node->style = &mapping->style;
+  style_node->next_sibling = NULL;
+
+  if (mapping->child) {
+    style_node->child_first = style_node->child_last
+      = symbol_to_style(sym, style_node_stack, mapping->child);
+    return style_node;
+  }
+
   style_node->str_len = sym->str_len;
   style_node->str = sym->str;
 
-  for (
-      sym_child = sym->child_first;
-      sym_child;
-      sym_child = sym_child->next_sibling) {
-    if (style_node->child_last) {
+
+  sym_child = sym->child_first;
+  if (!sym_child)
+    return style_node;
+  child_node = symbol_to_style(sym_child, style_node_stack,
+    &symbol_style_map[sym_child->type]);
+  if (!child_node)
+    return style_node;
+  style_node->child_last = style_node->child_first = child_node;
+  sym_child = sym_child->next_sibling;
+  while (sym_child) {
+    child_node = symbol_to_style(sym_child, style_node_stack,
+        &symbol_style_map[sym_child->type]);
+    if (child_node)
       style_node->child_last = style_node->child_last->next_sibling
-        = style_symbol(sym_child, style_node_stack);
-    } else {
-      style_node->child_last = style_node->child_first
-        = style_symbol(sym_child, style_node_stack);
-    }
+        = child_node;
+    sym_child = sym_child->next_sibling;
   }
 
   return style_node;
@@ -53,7 +98,7 @@ print_style_tree(struct style_node* style_node, int indent)
 {
   int i;
   for (i = 0; i < indent * 2; i++) putchar(' ');
-  printf("font_size: %d\n", style_node->style.font_size);
+  printf("font_size: %d\n", style_node->style->font_size);
   if (style_node->str) {
     for (i = 0; i < indent * 2; i++) putchar(' ');
     putchar('"');
@@ -71,5 +116,6 @@ print_style_tree(struct style_node* style_node, int indent)
 struct style_node *
 create_style_tree(const struct symbol *root_sym, struct stack *style_node_stack)
 {
-  return style_symbol(root_sym, style_node_stack);
+  return symbol_to_style(root_sym, style_node_stack,
+      &symbol_style_map[root_sym->type]);
 }

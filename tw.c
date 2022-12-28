@@ -136,7 +136,7 @@ main()
   root_style = create_style_tree(root_sym, &style_stack);
   if (!root_style) return 1;
   print_style_tree(root_style, 0);
-  root_layout = layout_pages(root_style, &layout_stack);
+  root_layout = layout_pages(root_style, &layout_stack, &font_info);
   if (!root_layout) return 1;
   print_layout_tree(root_layout, 0);
   paint_content(root_layout, &content);

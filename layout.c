@@ -2,84 +2,150 @@
 
 #include <string.h>
 
-/*
-static void (*symbol_layouts[])(int max_width, int max_height,
-    const struct symbol **sym_path, struct stack *layout_stack) = {
-  [SYMBOL_PARAGRAPH] = layout_vertical_block,
-  [SYMBOL_REGULAR_WORD] = layout_word,
+struct layout_resources {
+  const struct font_info *font;
 };
-*/
 
-static struct layout_box *layout_block(int max_width, int max_height,
-    const struct style_node **path, struct stack *layout_stack);
-static struct layout_box *layout_word(int max_width, int max_height,
-    const struct style_node **path, struct stack *layout_stack);
-static struct layout_box *layout(int max_width, int max_height,
-    const struct style_node **path, struct stack *layout_stack);
+static struct layout_box *layout_adjacent(struct style_node *node,
+    struct stack *fragment_stack, int max_width, int max_height,
+    struct stack *layout_stack, const struct layout_resources *resources,
+    int horizontal);
+static struct layout_box *layout_vertical(struct style_node *node,
+    struct stack *fragment_stack, int max_width, int max_height,
+    struct stack *layout_stack, const struct layout_resources *resources);
+static struct layout_box *layout_horizontal(struct style_node *node,
+    struct stack *fragment_stack, int max_width, int max_height,
+    struct stack *layout_stack, const struct layout_resources *resources);
+static struct layout_box *layout_word(struct style_node *node,
+    struct stack *fragment_stack, int max_width, int max_height,
+    struct stack *layout_stack, const struct layout_resources *resources);
+static struct layout_box * layout(struct style_node *node,
+    struct stack *fragment_stack, int max_width, int max_height,
+    struct stack *layout_stack, const struct layout_resources *resources);
+
+static struct layout_box *(*display_layouts[])(struct style_node *node,
+    struct stack *fragment_stack, int max_width, int max_height,
+    struct stack *layout_stack, const struct layout_resources *resources) = {
+  [LAYOUT_VERTICAL] = layout_vertical,
+  [LAYOUT_HORIZONTAL] = layout_horizontal,
+  [LAYOUT_WORD] = layout_word,
+};
 
 static struct layout_box *
-layout_block(int max_width, int max_height,
-    const struct style_node **path, struct stack *layout_stack)
+layout_adjacent(struct style_node *node, struct stack *fragment_stack,
+    int max_width, int max_height, struct stack *layout_stack,
+    const struct layout_resources *resources, int horizontal)
 {
-  struct layout_box *box, *child_box;
-  int x, y, max_x, max_y;
+  int content_width, content_height, x, y, highest, widest;
+  struct style_node *child_node;
+  struct layout_box *block_box;
 
-  if (path[1] == NULL)
-    path[1] = path[0]->child_first;
+  block_box = stack_push(layout_stack);
+  child_node = stack_pop_pointer(fragment_stack);
+  if (child_node == NULL)
+    child_node = node->child_first;
 
-  box = stack_push(layout_stack);
-  box->str_len = 0;
-  box->str = NULL;
-  box->child_first = box->child_last = NULL;
-  box->next_sibling = NULL;
+  content_width = max_width - node->style->padding_left
+    - node->style->padding_right;
+  content_height = max_height - node->style->padding_top
+    - node->style->padding_bottom;
+  x = y = 0;
+  highest = widest = 0;
 
-  x = path[0]->style.margin_left;
-  y = path[0]->style.margin_top;
-  max_x = max_width - path[0]->style.margin_right;
-  max_y = max_height - path[0]->style.margin_bottom;
-  while (path[1]) {
-    child_box = layout(max_x - x, max_y - y, path + 1, layout_stack);
-    if (child_box == NULL) break;
-    child_box->x = x;
-    child_box->y = y;
-    y += child_box->height;
-    if (box->child_last)
-      box->child_last = box->child_last->next_sibling = child_box;
-    else
-      box->child_last = box->child_first = child_box;
-    if (path[2]) break;
-    path[1] = path[1]->next_sibling;
+  block_box->str_len = 0;
+  block_box->str = NULL;
+  block_box->child_first = block_box->child_last
+    = layout(child_node, fragment_stack, content_width, content_height,
+        layout_stack, resources);
+  if (block_box->child_first == NULL) {
+    stack_pop(layout_stack);
+    return NULL; /* insufficient space for any children */
   }
-  box->width = max_width;
-  box->height = y + path[0]->style.margin_bottom;
-  return box;
+  for (;;) {
+    block_box->child_last->x = node->style->padding_left + x;
+    block_box->child_last->y = node->style->padding_top + y;
+    if (block_box->child_last->width > widest)
+      widest = block_box->child_last->width;
+    if (block_box->child_last->width > highest)
+      highest = block_box->child_last->height;
+    if (horizontal)
+      x += block_box->child_last->width;
+    else
+      y += block_box->child_last->height;
+    if (fragment_stack->height == 0)
+      child_node = child_node->next_sibling;
+    if (child_node == NULL)
+      break; /* consumed all content */
+    block_box->child_last->next_sibling = layout(child_node, fragment_stack,
+        content_width - x, content_height - y, layout_stack,
+        resources);
+    if (block_box->child_last->next_sibling == NULL) {
+      stack_push_pointer(fragment_stack, child_node);
+      break; /* insufficient space for this child */
+    }
+    block_box->child_last = block_box->child_last->next_sibling;
+  }
+  block_box->width = node->style->padding_left + node->style->padding_right
+    + (horizontal ? x : widest);
+  block_box->height = node->style->padding_top + node->style->padding_bottom
+    + (horizontal ? highest : y);
+  return block_box;
 }
 
 static struct layout_box *
-layout_word(int max_width, int max_height,
-    const struct style_node **path, struct stack *layout_stack)
+layout_vertical(struct style_node *node, struct stack *fragment_stack,
+    int max_width, int max_height, struct stack *layout_stack,
+    const struct layout_resources *resources)
+{
+  return layout_adjacent(node, fragment_stack, max_width, max_height,
+      layout_stack, resources, 0);
+}
+
+static struct layout_box *
+layout_horizontal(struct style_node *node, struct stack *fragment_stack,
+    int max_width, int max_height, struct stack *layout_stack,
+    const struct layout_resources *resources)
+{
+  return layout_adjacent(node, fragment_stack, max_width, max_height,
+      layout_stack, resources, 1);
+}
+
+static struct layout_box *
+layout_word(struct style_node *node, struct stack *fragment_stack,
+    int max_width, int max_height, struct stack *layout_stack,
+    const struct layout_resources *resources)
 {
   struct layout_box *box;
-  if (max_height < path[0]->style.font_size)
+  int i, width, height;
+  width = 0;
+  for (i = 0; i < node->str_len; i++)
+    width += resources->font->char_widths[node->str[i]];
+  width *= node->style->font_size;
+  width /= 1000;
+  width += node->style->padding_left + node->style->padding_right;
+  height = node->style->padding_top + node->style->padding_bottom
+    + node->style->font_size;
+  if (height > max_height)
+    return NULL;
+  if (width > max_width)
     return NULL;
   box = stack_push(layout_stack);
-  box->width = max_width; /* todo: read character width */
-  box->height = path[0]->style.font_size;
-  box->str_len = path[0]->str_len;
-  box->str = path[0]->str;
+  box->width = width;
+  box->height = height;
+  box->str_len = node->str_len;
+  box->str = node->str;
   box->child_first = box->child_last = NULL;
   box->next_sibling = NULL;
   return box;
 }
 
 static struct layout_box *
-layout(int max_width, int max_height,
-    const struct style_node **path, struct stack *layout_stack)
+layout(struct style_node *node, struct stack *fragment_stack, int max_width,
+    int max_height, struct stack *layout_stack,
+    const struct layout_resources *resources)
 {
-  if (path[0]->child_first == NULL)
-    return layout_word(max_width, max_height, path, layout_stack);
-  else
-    return layout_block(max_width, max_height, path, layout_stack);
+  return display_layouts[node->style->display_type]
+    (node, fragment_stack, max_width, max_height, layout_stack, resources);
 }
 
 void
@@ -109,16 +175,19 @@ print_layout_tree(const struct layout_box *layout, int indent)
 }
 
 struct layout_box *
-layout_pages(const struct style_node *root_style_node,
-    struct stack *layout_stack)
+layout_pages(struct style_node *root_style_node,
+    struct stack *layout_stack, const struct font_info *font)
 {
-  const struct style_node *path[32];
+  struct stack fragment_stack;
+  struct layout_resources resources;
   struct layout_box *page;
 
-  memset(path, 0, sizeof(path));
-  path[0] = root_style_node;
+  stack_init(&fragment_stack, 32, sizeof(struct style_node *));
 
-  page = layout(596, 842, path, layout_stack);
+  resources.font = font;
+
+  page = layout(root_style_node, &fragment_stack, 596, 842, layout_stack,
+      &resources);
   page->x = 0;
   page->y = 0;
   page->height = 842;
