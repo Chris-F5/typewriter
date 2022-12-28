@@ -83,12 +83,27 @@ layout_adjacent(struct style_node *node, struct stack *fragment_stack,
       stack_push_pointer(fragment_stack, child_node);
       break; /* insufficient space for this child */
     }
+    if (horizontal)
+      x += block_box->child_last->next_sibling->margin_right
+        > block_box->child_last->margin_left
+        ? block_box->child_last->next_sibling->margin_right
+        : block_box->child_last->margin_left;
+    else
+      y += block_box->child_last->next_sibling->margin_bottom
+        > block_box->child_last->margin_top
+        ? block_box->child_last->next_sibling->margin_bottom
+        : block_box->child_last->margin_top;
+
     block_box->child_last = block_box->child_last->next_sibling;
   }
   block_box->width = node->style->padding_left + node->style->padding_right
     + (horizontal ? x : widest);
   block_box->height = node->style->padding_top + node->style->padding_bottom
     + (horizontal ? highest : y);
+  block_box->margin_top = node->style->margin_top;
+  block_box->margin_bottom = node->style->margin_bottom;
+  block_box->margin_left = node->style->margin_left;
+  block_box->margin_right = node->style->margin_right;
   return block_box;
 }
 
@@ -136,6 +151,11 @@ layout_word(struct style_node *node, struct stack *fragment_stack,
   box->str = node->str;
   box->child_first = box->child_last = NULL;
   box->next_sibling = NULL;
+  box->margin_top = node->style->margin_top;
+  box->margin_bottom = node->style->margin_bottom;
+  box->margin_left = node->style->margin_left;
+  box->margin_right = node->style->margin_right
+    + resources->font->char_widths[' '] * node->style->font_size / 1000;
   return box;
 }
 

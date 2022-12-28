@@ -37,6 +37,7 @@ struct symbol {
 struct style {
   int display_type;
   int padding_top, padding_bottom, padding_left, padding_right;
+  int margin_top, margin_bottom, margin_left, margin_right;
   int font_size;
 };
 
@@ -52,6 +53,7 @@ struct style_node {
 struct layout_box {
   int x, y;
   int width, height;
+  int margin_top, margin_bottom, margin_left, margin_right;
   int str_len;
   const char *str;
   struct layout_box *child_first;

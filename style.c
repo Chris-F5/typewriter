@@ -12,7 +12,8 @@ static const struct symbol_style_mapping symbol_style_map[] = {
   [SYMBOL_DOCUMENT] = {
     {
       LAYOUT_VERTICAL,
-      20, 20, 20, 20,
+      60, 60, 70, 70,
+      0, 0, 0, 0,
       0,
     },
     NULL
@@ -20,13 +21,15 @@ static const struct symbol_style_mapping symbol_style_map[] = {
   [SYMBOL_PARAGRAPH] = {
     { /* paragraph */
       LAYOUT_VERTICAL,
-      0, 20, 0, 0,
+      0, 0, 0, 0,
+      15, 15, 0, 0,
       0,
     },
     &(struct symbol_style_mapping){
       { /* line */
         LAYOUT_HORIZONTAL,
-        0, 5, 0, 0,
+        0, 0, 0, 0,
+        3, 3, 0, 0,
         0,
       },
       NULL
@@ -35,7 +38,8 @@ static const struct symbol_style_mapping symbol_style_map[] = {
   [SYMBOL_REGULAR_WORD] = {
     {
       LAYOUT_WORD,
-      0, 0, 0, 4,
+      0, 0, 0, 0,
+      0, 0, 0, 0,
       12,
     },
     NULL
@@ -43,7 +47,8 @@ static const struct symbol_style_mapping symbol_style_map[] = {
   [SYMBOL_BOLD_WORD] = {
     {
       LAYOUT_WORD,
-      0, 0, 0, 4,
+      0, 0, 0, 0,
+      0, 0, 0, 0,
       12,
     },
     NULL
