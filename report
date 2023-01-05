@@ -1,0 +1,111 @@
+======= NEA Report =======
+--- Typesetting System ---
+---- Christopher Lang ----
+------- 2022-2023 --------
+
+= Analysis
+
+== Problem Definition
+
+Problem Domain -
+A typesetting system designed for the production printable documents.
+
+Target Client -
+Linux users writing technical or academic documents.
+
+Problem Background -
+Digital, printable documents are often distributed and stored in machine
+redable formats such as PDF and PostScript.
+Software is required to enable humans to conveniently create and edit these
+documents.
+This software must provide a way for users to specify the content and style of
+the document, interpret this, and generate an output document conforming to the
+users expectations.
+Often, this software has responsibilities such as:
+* Dividing text into multiple lines ('filling'), 
+* Diviging document content into multiple pages.
+* Positioning primitive content elements in a page.
+* Placing footnotes on the appropriate page.
+* Exporting document to a PDF file.
+
+Development Philosophy -
+* Freely distribute source code.
+* Have focus on simplicity.
+* Design usable software.
+* Reduce hardware resource consumption.
+
+== Problem Research
+
+# Assessment of existing solutions.
+# * WYSIWYG software
+# * groff/troff
+# * tex/latex
+# * html+css
+# * markdown
+# * asciidoc
+
+# Research for specific design choices.
+# * post-script / pdf comparison
+# ? survey of syntax
+
+# Research of existing technical implementations.
+# * groff online manual
+#     https://www.gnu.org/software/groff/manual/
+# * html/css
+#     https://limpet.net/mbrubeck/2014/08/08/toy-layout-engine-1.html
+#     https://web.dev/howbrowserswork/
+#     ? http://book.mixu.net/css/ 
+# * pdf manual (on my website)
+# * apple developer ttf reference manual
+#     https://developer.apple.com/fonts/TrueType-Reference-Manual/
+# * my prototype code
+# * computerphile parsing videos
+#     https://www.youtube.com/watch?v=bxpc9Pp5pZM&t=317s
+#     https://www.youtube.com/watch?v=dDtZLm7HIJs&t=945s
+# * js parsing code on github
+#     https://github.com/lupomontero/parsing
+# ? tex/latex documentation of some kind
+
+# General Software Development Resources
+# * 'Domain-Driven Design' - Eric Evans
+
+== Solution Objectives
+
+1. Parse command line options.
+  1.1. Parse input text file location(s).
+  1.2. Parse output pdf file location.
+2. Parse input text.
+  2.1. Parse headers.
+  2.2. Parse regular text.
+  2.3. Parse bold text.
+  2.4. Parse italic text.
+  2.5. Parse bullet point list.
+  2.6. Parse numbered list.
+  2.7. Parse footnotes.
+3. Parse true type font file.
+  3.1. Extract character widths.
+  3.2. Extract glyph bounding box.
+4. Layout graphic elements.
+  4.1. Divide text into lines.
+  4.2. Optionally adjust line space size to fill width.
+  4.3. Optionally hyphenate words to minimize space gap.
+    4.3.1. Apply stylistic rules to hyphenation. For example, don't hyphenate
+    consecutive lines and don't hyphenate before the last line of a paragraph.
+  4.4. Divide paragraph into fragments that span multiple pages/columns.
+  4.5. Divide lists into fragments that span multiple pages/columns.
+  4.6. Divide document into pages.
+  4.7. Optionally divide page into columns.
+  4.8. Place footnotes at bottom of page they appear in.
+    4.8.1. If the space consumed by a footnote changes the area available for
+    the pages content, re-layout page content and check the footnote still
+    appears on that page.
+5. Write output to pdf file.
+  5.1. Embed font into pdf file.
+  5.2. Write pdf page content.
+    5.2.1. Write text with font, size and arbitrary space width.
+    5.2.2. Paint shapes defined by paths.
+  5.3. Write pdf cross-reference table.
+
+= Documented Design
+
+== Domain Model
