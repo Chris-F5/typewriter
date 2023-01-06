@@ -11,10 +11,23 @@ enum symbol_type {
   SYMBOL_BOLD_WORD,
 };
 
-enum layout_type {
-  LAYOUT_VERTICAL,
-  LAYOUT_HORIZONTAL,
-  LAYOUT_WORD,
+enum element_type {
+  ELEMENT_NONE = 0,
+  ELEMENT_PAGE,
+  ELEMENT_BLOCK,
+  ELEMENT_TEXT_LEFT_ALIGNED,
+  ELEMENT_TEXT_JUSTIFIED,
+};
+
+enum pdf_primitive_type {
+  PDF_NUMBER,
+  PDF_STRING,
+  PDF_NAME,
+};
+
+struct bytes {
+  int count, allocated, increment;
+  char *data;
 };
 
 struct stack {
@@ -23,47 +36,6 @@ struct stack {
     struct stack_page *below;
     char data[];
   } *top_page;
-};
-
-struct symbol {
-  int type;
-  int str_len;
-  const char *str;
-  struct symbol *child_first;
-  struct symbol *child_last;
-  struct symbol *next_sibling;
-};
-
-struct style {
-  int display_type;
-  int padding_top, padding_bottom, padding_left, padding_right;
-  int margin_top, margin_bottom, margin_left, margin_right;
-  int font_size;
-};
-
-struct style_node {
-  const struct style *style;
-  int str_len;
-  const char *str;
-  struct style_node *child_first;
-  struct style_node *child_last;
-  struct style_node *next_sibling;
-};
-
-struct layout_box {
-  int x, y;
-  int width, height;
-  int margin_top, margin_bottom, margin_left, margin_right;
-  int str_len;
-  const char *str;
-  struct layout_box *child_first;
-  struct layout_box *child_last;
-  struct layout_box *next_sibling;
-};
-
-struct content {
-  int allocated, length;
-  char *str;
 };
 
 struct font_info {
@@ -77,6 +49,62 @@ struct font_info {
   int char_widths[256];
 };
 
+struct symbol {
+  int type;
+  int str_len;
+  const char *str;
+  struct symbol *child_first;
+  struct symbol *child_last;
+  struct symbol *next;
+};
+
+struct span {
+  int font_size;
+  char leading_char;
+  int str_len;
+  const char *str;
+  struct span *next;
+};
+
+struct element {
+  int type;
+  struct span *text;
+  struct element *next;
+  struct element *children;
+};
+
+struct element_interrupt {
+  int element_float;
+  struct element* element;
+  struct element_interrupt* next;
+};
+
+struct element_iterator {
+  struct stack stack;
+  struct span *span;
+};
+
+struct pdf_primitive {
+  int type;
+  union {
+    float num;
+    char *str;
+  } data;
+};
+
+struct pdf_content_instruction {
+  char operation[4];
+  int operand_count;
+  struct pdf_primitive operands[4];
+  struct pdf_content_instruction *next;
+};
+
+struct pdf_graphic {
+  int width, height;
+  struct pdf_content_instruction *first;
+  struct pdf_content_instruction *last;
+};
+
 struct pdf_ctx {
   FILE *file;
   int obj_count;
@@ -87,6 +115,11 @@ struct pdf_ctx {
 /* error.c */
 void *xmalloc(size_t len);
 void *xrealloc(void *p, size_t len);
+
+/* bytes.c */
+void bytes_init(struct bytes *bytes, int initial, int increment);
+void bytes_printf(struct bytes *bytes, const char *format, ...);
+void bytes_free(struct bytes *bytes);
 
 /* stack.c */
 void stack_init(struct stack *stack, int page_size, int item_size);
@@ -100,31 +133,29 @@ void stack_free(struct stack *stack);
 void print_symbol_tree(struct symbol* sym, int indent);
 struct symbol *parse_document(const char *document, struct stack *sym_stack);
 
-/* style.c */
-void print_style_tree(struct style_node* style_node, int indent);
-struct style_node *create_style_tree(const struct symbol *root_sym,
-    struct stack *style_node_stack);
+/* interpret.c */
+void print_span_list(const struct span *span);
+void print_element_tree(const struct element *element, int indent);
+struct element *interpret(struct symbol *sym, struct stack *element_stack,
+    struct stack *span_stack);
 
 /* layout.c */
-void print_layout_tree(const struct layout_box *box, int indent);
-struct layout_box *layout_pages(struct style_node *root_style_node,
-    struct stack *layout_stack, const struct font_info *font);
-
-/* paint.c */
-void content_init(struct content *content);
-void content_free(struct content *content);
-void paint_content(const struct layout_box *layout, struct content *content);
+struct pdf_graphic layout_pdf_page(struct element *root_element,
+    struct stack *graphics_stack);
 
 /* ttf.c */
 int read_ttf(const char *ttf, long ttf_size, struct font_info *info);
 
+/* pdf_content.c */
+void write_graphic(struct bytes *bytes, const struct pdf_graphic *graphic);
+
 /* pdf.c */
 void pdf_init(struct pdf_ctx *pdf, FILE *file);
 int pdf_allocate_obj(struct pdf_ctx *pdf);
-void pdf_add_content(struct pdf_ctx *pdf, int obj,
-    const struct content *content);
 void pdf_add_true_type_program(struct pdf_ctx *pdf, int obj, const char *ttf,
     long ttf_size);
+void pdf_add_stream(struct pdf_ctx *pdf, int obj, const char *bytes,
+    long bytes_count);
 void pdf_add_int_array(struct pdf_ctx *pdf, int obj, const int *valeus,
     int count);
 void pdf_add_resources(struct pdf_ctx *pdf, int obj, int font_widths,

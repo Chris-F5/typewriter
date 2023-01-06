@@ -42,16 +42,6 @@ pdf_allocate_obj(struct pdf_ctx *pdf)
 }
 
 void
-pdf_add_content(struct pdf_ctx *pdf, int obj, const struct content *content)
-{
-  char c;
-  start_obj(pdf, obj);
-  fprintf(pdf->file, "<< /Length %d >>\nstream\n", content->length);
-  fwrite(content->str, 1, content->length, pdf->file);
-  fprintf(pdf->file, "\nendstream\nendobj\n");
-}
-
-void
 pdf_add_true_type_program(struct pdf_ctx *pdf, int obj, const char *ttf,
     long ttf_size)
 {
@@ -64,6 +54,16 @@ pdf_add_true_type_program(struct pdf_ctx *pdf, int obj, const char *ttf,
   >>\nstream\n", ttf_size * 2, ttf_size);
   for (i = 0; i < ttf_size; i++)
     fprintf(pdf->file, "%02x", (unsigned char)ttf[i]);
+  fprintf(pdf->file, "\nendstream\nendobj\n");
+}
+
+void
+pdf_add_stream(struct pdf_ctx *pdf, int obj, const char *bytes,
+    long bytes_count)
+{
+  start_obj(pdf, obj);
+  fprintf(pdf->file, "<< /Length %ld >> stream\n", bytes_count);
+  fwrite(bytes, 1, bytes_count, pdf->file);
   fprintf(pdf->file, "\nendstream\nendobj\n");
 }
 

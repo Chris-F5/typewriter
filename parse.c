@@ -146,7 +146,7 @@ parse(const int **parser, const char **input, struct symbol *sym,
     new_sym->str = NULL;
     new_sym->child_first = NULL;
     new_sym->child_last = NULL;
-    new_sym->next_sibling = NULL;
+    new_sym->next = NULL;
     new_parser = new_sym_parser->parser;
     parse(&new_parser, input, new_sym, sym_stack, error);
     if (!*input) {
@@ -154,7 +154,7 @@ parse(const int **parser, const char **input, struct symbol *sym,
       break;
     }
     if (sym->child_last)
-      sym->child_last = sym->child_last->next_sibling = new_sym;
+      sym->child_last = sym->child_last->next = new_sym;
     else
       sym->child_first = sym->child_last = new_sym;
     break;
@@ -242,7 +242,7 @@ print_symbol_tree(struct symbol* sym, int indent)
   sym = sym->child_first;
   while (sym) {
     print_symbol_tree(sym, indent + 1);
-    sym = sym->next_sibling;
+    sym = sym->next;
   }
 }
 
@@ -264,7 +264,7 @@ parse_document(const char *document, struct stack *sym_stack)
   root_sym->str = 0;
   root_sym->child_first = NULL;
   root_sym->child_last = NULL;
-  root_sym->next_sibling = NULL;
+  root_sym->next = NULL;
   parse(&parser, &input, root_sym, sym_stack, &parser_error);
   if (!input) {
     fprintf(stderr, "Failed to parse document. %s\n", parser_error.location);
