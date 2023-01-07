@@ -112,7 +112,7 @@ main()
   char *ttf, *document;
   long ttf_size, document_size;
   struct font_info font_info;
-  struct stack sym_stack, element_stack, span_stack, graphics_stack;
+  struct stack sym_stack, element_stack, graphics_stack;
   struct symbol *root_sym;
   struct element *root_element;
   struct pdf_graphic page_graphic;
@@ -129,17 +129,16 @@ main()
     return 1;
   document[document_size] = '\0';
 
-  stack_init(&sym_stack, 1024, sizeof(struct symbol));
-  stack_init(&element_stack, 1024, sizeof(struct element));
-  stack_init(&span_stack, 1024, sizeof(struct span));
-  stack_init(&graphics_stack, 1024, sizeof(struct pdf_content_instruction));
+  stack_init(&sym_stack, 32 * 1024);
+  stack_init(&element_stack, 32 * 1024);
+  stack_init(&graphics_stack, 64 * 1024);
 
   root_sym = parse_document(document, &sym_stack);
   if (!root_sym)
     return 1;
   print_symbol_tree(root_sym, 0);
 
-  root_element = interpret(root_sym, &element_stack, &span_stack);
+  root_element = interpret(root_sym, &element_stack);
   if (!root_element)
     return 1;
   print_element_tree(root_element, 0);
@@ -151,10 +150,9 @@ main()
 
   generate_pdf_file("output2.pdf", ttf, ttf_size, &font_info, &content);
 
-  stack_free(&sym_stack);
-  stack_free(&element_stack);
-  stack_free(&span_stack);
-  stack_free(&graphics_stack);
+  stack_free(&sym_stack, 0);
+  stack_free(&element_stack, 0);
+  stack_free(&graphics_stack, 0);
   free(document);
   free(ttf);
 

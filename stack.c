@@ -3,69 +3,73 @@
 #include <stdlib.h>
 
 void
-stack_init(struct stack *stack, int page_size, int item_size)
+stack_init(struct stack *stack, int page_size)
 {
-  stack->item_size = item_size;
   stack->page_size = page_size;
   stack->height = 0;
   stack->top_page = NULL;
 }
 
 void *
-stack_push(struct stack *stack)
+stack_allocate(struct stack *stack, int size)
 {
+  int page_space;
   struct stack_page *new_page;
-  if (stack->height % stack->page_size == 0) {
-    new_page = xmalloc(
-        sizeof(struct stack_page) + stack->page_size * stack->item_size);
-    new_page->below = stack->top_page;
-    stack->top_page = new_page;
+  void *ptr;
+  if (stack->top_page) {
+    page_space = stack->top_page->size + stack->top_page->height
+      - stack->height;
+    if (size <= page_space) {
+      ptr = stack->top_page->data + stack->height - stack->top_page->height;
+      stack->height += size;
+      return ptr;
+    }
   }
-  return stack->top_page->data 
-    + stack->item_size * (stack->height++ % stack->page_size);
+
+  page_space = size > stack->page_size ? size : stack->page_size;
+  new_page = xmalloc(sizeof(struct stack_page) + page_space);
+  new_page->size = page_space;
+  new_page->height = stack->height;
+  new_page->below = stack->top_page;
+  stack->top_page = new_page;
+  ptr = stack->top_page->data + stack->height - stack->top_page->height;
+
+  stack->height += size;
+  return ptr;
 }
 
 void
-stack_pop(struct stack *stack)
+stack_free(struct stack *stack, int height)
 {
   struct stack_page *old_page;
-  if (stack->height == 0) {
-    fprintf(stderr, "Can't pop from empty stack.\n");
-    return;
-  }
-  stack->height--;
-  if (stack->height % stack->page_size == 0) {
+  while (stack->top_page && stack->top_page->height >= height) {
     old_page = stack->top_page;
     stack->top_page = stack->top_page->below;
     free(old_page);
   }
+  stack->height = height;
 }
 
 void
 stack_push_pointer(struct stack *stack, void *ptr)
 {
-  *(void**)stack_push(stack) = ptr;
+  *(void **)stack_allocate(stack, sizeof(void *)) = ptr;
 }
 
 void *
 stack_pop_pointer(struct stack *stack)
 {
-  void *ptr;
-  if (stack->height <= 0)
+  void * ptr;
+  if (stack->top_page == NULL || stack->height < sizeof(void *))
     return NULL;
-  ptr = *((void **)stack->top_page->data 
-    + stack->item_size * ((stack->height - 1) % stack->page_size));
-  stack_pop(stack);
-  return ptr;
-}
 
-void
-stack_free(struct stack *stack)
-{
-  struct stack_page *old_page;
-  while (stack->top_page) {
-    old_page = stack->top_page;
-    stack->top_page = stack->top_page->below;
-    free(old_page);
+  if (stack->height - sizeof(void *) < stack->top_page->height) {
+    fprintf(stderr, "Can't pop pointer from stack. Top item too small.");
+    return NULL;
   }
+
+  ptr = *(void **)(stack->top_page->data + stack->height - sizeof(void *)
+    - stack->top_page->height);
+  stack_free(stack, stack->height - sizeof(void *));
+  return ptr;
 }

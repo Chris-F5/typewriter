@@ -31,8 +31,9 @@ struct bytes {
 };
 
 struct stack {
-  int item_size, page_size, height;
+  int page_size, height;
   struct stack_page {
+    int size, height;
     struct stack_page *below;
     char data[];
   } *top_page;
@@ -122,12 +123,11 @@ void bytes_printf(struct bytes *bytes, const char *format, ...);
 void bytes_free(struct bytes *bytes);
 
 /* stack.c */
-void stack_init(struct stack *stack, int page_size, int item_size);
-void *stack_push(struct stack *stack);
-void stack_pop(struct stack *stack);
+void stack_init(struct stack *stack, int page_size);
+void *stack_allocate(struct stack *stack, int size);
+void stack_free(struct stack *stack, int height);
 void stack_push_pointer(struct stack *stack, void *ptr);
 void *stack_pop_pointer(struct stack *stack);
-void stack_free(struct stack *stack);
 
 /* parse.c */
 void print_symbol_tree(struct symbol* sym, int indent);
@@ -136,8 +136,7 @@ struct symbol *parse_document(const char *document, struct stack *sym_stack);
 /* interpret.c */
 void print_span_list(const struct span *span);
 void print_element_tree(const struct element *element, int indent);
-struct element *interpret(struct symbol *sym, struct stack *element_stack,
-    struct stack *span_stack);
+struct element *interpret(struct symbol *sym, struct stack *element_stack);
 
 /* layout.c */
 struct pdf_graphic layout_pdf_page(struct element *root_element,

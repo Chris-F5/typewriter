@@ -102,9 +102,14 @@ parse(const int **parser, const char **input, struct symbol *sym,
   struct symbol *new_sym;
   const struct symbol_parser *new_sym_parser;
 
-  opcode = *(*parser)++;
-  switch (opcode) {
 
+  opcode = *(*parser)++;
+
+  /*if (*input)
+    printf("===%d===\n%s\n", opcode, *input);
+    */
+
+  switch (opcode) {
   case PARSE_CHAR:
     if (!*input) {
       (*parser) += 1;
@@ -140,7 +145,7 @@ parse(const int **parser, const char **input, struct symbol *sym,
       break;
     }
     new_sym_parser = &symbol_parsers[*(*parser)++];
-    new_sym = stack_push(sym_stack);
+    new_sym = stack_allocate(sym_stack, sizeof(struct symbol));
     new_sym->type = new_sym_parser->symbol;
     new_sym->str_len = 0;
     new_sym->str = NULL;
@@ -150,7 +155,7 @@ parse(const int **parser, const char **input, struct symbol *sym,
     new_parser = new_sym_parser->parser;
     parse(&new_parser, input, new_sym, sym_stack, error);
     if (!*input) {
-      stack_pop(sym_stack);
+      stack_free(sym_stack, sym_stack->height - sizeof(struct symbol));
       break;
     }
     if (sym->child_last)
@@ -258,7 +263,7 @@ parse_document(const char *document, struct stack *sym_stack)
 
   input = document;
   parser = symbol_parsers[PARSER_ROOT].parser;
-  root_sym = stack_push(sym_stack);
+  root_sym = stack_allocate(sym_stack, sizeof(struct symbol));
   root_sym->type = symbol_parsers[PARSER_ROOT].symbol;
   root_sym->str_len = 0;
   root_sym->str = 0;
