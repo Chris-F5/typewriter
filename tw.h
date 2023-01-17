@@ -3,27 +3,47 @@
 
 #define OR ? (errno = 0) : (errno = errno ? errno : -1); if (errno)
 
+enum parser_opcodes {
+  /* primitives */
+  PARSE_CHAR,
+  PARSE_CHAR_RANGE,
+  PARSE_GRAMMAR,
+  /* symbol constructors */
+  PARSE_SYMBOL,
+  PARSE_SYMBOL_STRING,
+  /* patterns */
+  PARSE_CHOICE,
+  PARSE_SEQ,
+  PARSE_ANY,
+  PARSE_SOME,
+  PARSE_OPTIONAL,
+  /* miscellaneous */
+  END_PARSE = -256
+};
+
 enum symbol_type {
-  SYMBOL_NONE = 0,
-  SYMBOL_DOCUMENT,
+  SYMBOL_ROOT,
   SYMBOL_PARAGRAPH,
-  SYMBOL_REGULAR_WORD,
-  SYMBOL_BOLD_WORD,
+  SYMBOL_WORD,
 };
 
-enum element_type {
-  ELEMENT_NONE = 0,
-  ELEMENT_PAGE,
-  ELEMENT_BLOCK,
-  ELEMENT_TEXT_LEFT_ALIGNED,
-  ELEMENT_TEXT_JUSTIFIED,
+enum gizmo_type {
+  GIZMO_GRAPHIC,
+  GIZMO_COMPONENT,
 };
 
+enum component_orientation {
+  ORIENTATION_VERTICAL,
+  ORIENTATION_HORIZONTAL,
+};
+
+/*
 enum pdf_primitive_type {
   PDF_NUMBER,
   PDF_STRING,
   PDF_NAME,
 };
+*/
 
 struct bytes {
   int count, allocated, increment;
@@ -39,6 +59,14 @@ struct stack {
   } *top_page;
 };
 
+struct symbol {
+  int type;
+  int str_len;
+  const char *str;
+  struct symbol *children;
+  struct symbol *next;
+};
+
 struct font_info {
   int units_per_em;
   int x_min;
@@ -50,46 +78,33 @@ struct font_info {
   int char_widths[256];
 };
 
-struct symbol {
-  int type;
-  int str_len;
-  const char *str;
-  struct symbol *child_first;
-  struct symbol *child_last;
-  struct symbol *next;
-};
-
-struct span {
+struct graphic_gizmo {
+  int gizmo_type;
+  struct gizmo *next;
+  float w, h;
   int font_size;
-  char leading_char;
-  int str_len;
-  const char *str;
-  struct span *next;
+  char c;
 };
 
-struct element {
-  int type;
-  struct span *text;
-  struct element *next;
-  struct element *children;
+struct component_gizmo {
+  int gizmo_type;
+  struct gizmo *next;
+  int orientation;
+  struct gizmo *gizmos;
 };
 
-struct element_interrupt {
-  int element_float;
-  struct element* element;
-  struct element_interrupt* next;
+struct gizmo {
+  int gizmo_type;
+  struct gizmo *next;
+  char _[];
 };
 
-struct element_iterator {
-  struct stack stack;
-  struct span *span;
-};
-
+/*
 struct pdf_primitive {
   int type;
   union {
     float num;
-    char *str;
+    const char *str;
   } data;
 };
 
@@ -99,12 +114,7 @@ struct pdf_content_instruction {
   struct pdf_primitive operands[4];
   struct pdf_content_instruction *next;
 };
-
-struct pdf_graphic {
-  int width, height;
-  struct pdf_content_instruction *first;
-  struct pdf_content_instruction *last;
-};
+*/
 
 struct pdf_ctx {
   FILE *file;
@@ -133,20 +143,8 @@ void *stack_pop_pointer(struct stack *stack);
 void print_symbol_tree(struct symbol* sym, int indent);
 struct symbol *parse_document(const char *document, struct stack *sym_stack);
 
-/* interpret.c */
-void print_span_list(const struct span *span);
-void print_element_tree(const struct element *element, int indent);
-struct element *interpret(struct symbol *sym, struct stack *element_stack);
-
-/* layout.c */
-struct pdf_graphic layout_pdf_page(struct element *root_element,
-    struct stack *graphics_stack);
-
 /* ttf.c */
 int read_ttf(const char *ttf, long ttf_size, struct font_info *info);
-
-/* pdf_content.c */
-void write_graphic(struct bytes *bytes, const struct pdf_graphic *graphic);
 
 /* pdf.c */
 void pdf_init(struct pdf_ctx *pdf, FILE *file);
