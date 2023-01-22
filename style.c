@@ -36,7 +36,7 @@ style_word(const struct symbol *sym, const struct font_info *font_info,
   graphic->width = 0;
   for (i = 0; i < atom->str_len; i++)
     graphic->width += font_info->char_widths[atom->str[i]];
-  graphic->width *= atom->font_size;
+  graphic->width = graphic->width * atom->font_size / 1000;
   graphic->height = atom->font_size;
   graphic->text = atom_list;
 
@@ -47,13 +47,41 @@ style_word(const struct symbol *sym, const struct font_info *font_info,
 }
 
 static void
+style_paragraph(const struct symbol *sym, const struct font_info *font_info,
+    struct gizmo_list ***list_end, struct stack *gizmo_stack)
+{
+  struct container_gizmo *container;
+  struct gizmo_list **children_end, *gizmo_list;
+  struct symbol *sym_child;
+  gizmo_list  = stack_allocate(gizmo_stack, sizeof(struct gizmo_list));
+  container = stack_allocate(gizmo_stack, sizeof(struct container_gizmo));
+  container->gizmo_type = GIZMO_CONTAINER;
+  container->next = NULL;
+  container->orientation = ORIENTATION_HORIZONTAL;
+  container->gizmos = NULL;
+  gizmo_list->next = NULL;
+  gizmo_list->gizmo = (struct gizmo *)container;
+  children_end = &container->gizmos;
+  for (sym_child = sym->children; sym_child; sym_child = sym_child->next)
+    style(sym_child, font_info, &children_end, gizmo_stack);
+
+  *list_end = &(**list_end = gizmo_list)->next;
+}
+
+static void
 style(const struct symbol *sym, const struct font_info *font_info,
     struct gizmo_list ***list_end, struct stack *gizmo_stack)
 {
-  if (sym->type == SYMBOL_WORD)
+  switch (sym->type) {
+  case SYMBOL_WORD:
     style_word(sym, font_info, list_end, gizmo_stack);
-  else
+    break;
+  case SYMBOL_PARAGRAPH:
+    style_paragraph(sym, font_info, list_end, gizmo_stack);
+    break;
+  default:
     printf("Can't style symbol type '%d'\n", sym->type);
+  }
 }
 
 static void

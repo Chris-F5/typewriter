@@ -39,8 +39,6 @@ fragment(int orientation, const struct gizmo_list *gizmos, int width, int height
 
   new_graphic->gizmo_type = GIZMO_GRAPHIC;
   new_graphic->next = NULL;
-  new_graphic->width = width;
-  new_graphic->height = height;
   new_graphic->text = NULL;
   new_graphic_next_atom = &new_graphic->text;
 
@@ -64,6 +62,10 @@ fragment(int orientation, const struct gizmo_list *gizmos, int width, int height
       break;
     }
   }
+
+  new_graphic->width = is_vertical ? greatest_breadth : width;
+  new_graphic->height = is_vertical ? height : greatest_breadth;
+
   (**list_end) = stack_allocate(stack, sizeof(struct gizmo_list));
   (**list_end)->next = NULL;
   (**list_end)->gizmo = (struct gizmo *)new_graphic;

@@ -149,6 +149,7 @@ main()
 
   page_gizmos_end = &page_gizmos;
   layout(root_gizmo, 595, 842, &page_gizmos_end, &page_graphic_list_stack);
+  print_gizmo(page_gizmos->gizmo, 0);
 
   paint_graphic((struct graphic_gizmo *)page_gizmos->gizmo, &content_bytes,
       &font_info);
