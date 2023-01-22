@@ -32,7 +32,6 @@ style_word(const struct symbol *sym, const struct font_info *font_info,
   atom_list->atom = atom;
 
   graphic->gizmo_type = GIZMO_GRAPHIC;
-  graphic->next = NULL;
   graphic->width = 0;
   for (i = 0; i < atom->str_len; i++)
     graphic->width += font_info->char_widths[atom->str[i]];
@@ -56,7 +55,6 @@ style_paragraph(const struct symbol *sym, const struct font_info *font_info,
   gizmo_list  = stack_allocate(gizmo_stack, sizeof(struct gizmo_list));
   container = stack_allocate(gizmo_stack, sizeof(struct container_gizmo));
   container->gizmo_type = GIZMO_CONTAINER;
-  container->next = NULL;
   container->orientation = ORIENTATION_HORIZONTAL;
   container->gizmos = NULL;
   gizmo_list->next = NULL;
@@ -128,7 +126,6 @@ style_document(const struct symbol *sym, const struct font_info *font_info,
   struct gizmo_list **list_end;
   root_gizmo = stack_allocate(gizmo_stack, sizeof(struct container_gizmo));
   root_gizmo->gizmo_type = GIZMO_CONTAINER;
-  root_gizmo->next = NULL;
   root_gizmo->orientation = ORIENTATION_VERTICAL;
   root_gizmo->gizmos = NULL;
   list_end = &root_gizmo->gizmos;

@@ -38,7 +38,6 @@ fragment(int orientation, const struct gizmo_list *gizmos, int width, int height
   new_graphic = stack_allocate(stack, sizeof(struct graphic_gizmo));
 
   new_graphic->gizmo_type = GIZMO_GRAPHIC;
-  new_graphic->next = NULL;
   new_graphic->text = NULL;
   new_graphic_next_atom = &new_graphic->text;
 

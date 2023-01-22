@@ -71,14 +71,12 @@ struct gizmo {
 
 struct container_gizmo {
   int gizmo_type;
-  struct gizmo *next;
   int orientation;
   struct gizmo_list *gizmos;
 };
 
 struct graphic_gizmo {
   int gizmo_type;
-  struct gizmo *next;
   int width, height;
   struct atom_list *text;
 };
