@@ -29,21 +29,13 @@ enum symbol_type {
 
 enum gizmo_type {
   GIZMO_GRAPHIC,
-  GIZMO_COMPONENT,
+  GIZMO_CONTAINER,
 };
 
 enum component_orientation {
   ORIENTATION_VERTICAL,
   ORIENTATION_HORIZONTAL,
 };
-
-/*
-enum pdf_primitive_type {
-  PDF_NUMBER,
-  PDF_STRING,
-  PDF_NAME,
-};
-*/
 
 struct bytes {
   int count, allocated, increment;
@@ -67,6 +59,42 @@ struct symbol {
   struct symbol *next;
 };
 
+struct gizmo_list {
+  struct gizmo_list *next;
+  struct gizmo *gizmo;
+};
+
+struct gizmo {
+  int gizmo_type;
+  char _[];
+};
+
+struct container_gizmo {
+  int gizmo_type;
+  struct gizmo *next;
+  int orientation;
+  struct gizmo_list *gizmos;
+};
+
+struct graphic_gizmo {
+  int gizmo_type;
+  struct gizmo *next;
+  int width, height;
+  struct atom_list *text;
+};
+
+struct atom_list {
+  int x_offset, y_offset;
+  struct atom_list *next;
+  const void *atom;
+};
+
+struct text_atom {
+  int font_size;
+  int str_len;
+  const char *str;
+};
+
 struct font_info {
   int units_per_em;
   int x_min;
@@ -77,44 +105,6 @@ struct font_info {
   int cmap[256];
   int char_widths[256];
 };
-
-struct graphic_gizmo {
-  int gizmo_type;
-  struct gizmo *next;
-  float w, h;
-  int font_size;
-  char c;
-};
-
-struct component_gizmo {
-  int gizmo_type;
-  struct gizmo *next;
-  int orientation;
-  struct gizmo *gizmos;
-};
-
-struct gizmo {
-  int gizmo_type;
-  struct gizmo *next;
-  char _[];
-};
-
-/*
-struct pdf_primitive {
-  int type;
-  union {
-    float num;
-    const char *str;
-  } data;
-};
-
-struct pdf_content_instruction {
-  char operation[4];
-  int operand_count;
-  struct pdf_primitive operands[4];
-  struct pdf_content_instruction *next;
-};
-*/
 
 struct pdf_ctx {
   FILE *file;
@@ -142,6 +132,20 @@ void *stack_pop_pointer(struct stack *stack);
 /* parse.c */
 void print_symbol_tree(struct symbol* sym, int indent);
 struct symbol *parse_document(const char *document, struct stack *sym_stack);
+
+/* style.c */
+void print_gizmo(struct gizmo *gizmo, int indent);
+struct container_gizmo *style_document(const struct symbol *sym,
+    const struct font_info *font_info, struct stack *gizmo_stack);
+
+/* layout.c */
+void layout(const struct container_gizmo *container, int width, int height,
+    struct gizmo_list ***list_end, struct stack *stack);
+
+/* paint.c */
+void
+paint_graphic(const struct graphic_gizmo *graphic, struct bytes *content,
+    struct font_info *font_info);
 
 /* ttf.c */
 int read_ttf(const char *ttf, long ttf_size, struct font_info *info);

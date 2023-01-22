@@ -112,8 +112,12 @@ main()
   char *ttf, *document;
   long ttf_size, document_size;
   struct font_info font_info;
-  struct stack sym_stack;
+  struct stack sym_stack, gizmo_stack, page_graphic_list_stack;
   struct symbol *root_sym;
+  struct container_gizmo *root_gizmo;
+  struct gizmo_list *page_gizmos;
+  struct gizmo_list **page_gizmos_end;
+  struct bytes content_bytes;
 
   ttf = file_to_bytes("fonts/cmu.serif-roman.ttf", &ttf_size);
   if (ttf == NULL)
@@ -126,14 +130,35 @@ main()
     return 1;
   document[document_size] = '\0';
 
-  stack_init(&sym_stack, 32 * 1024);
+  stack_init(&sym_stack, 1024 * 16);
+  stack_init(&gizmo_stack, 1024 * 16);
+  stack_init(&page_graphic_list_stack, 1024);
+  bytes_init(&content_bytes, 1024 * 16, 1024 * 16);
 
   root_sym = parse_document(document, &sym_stack);
   if (!root_sym)
     return 1;
   print_symbol_tree(root_sym, 0);
 
+  root_gizmo = style_document(root_sym, &font_info, &gizmo_stack);
+  if (!root_gizmo)
+    return 1;
+  print_gizmo((struct gizmo *)root_gizmo, 0);
+
+  printf("===\n");
+
+  page_gizmos_end = &page_gizmos;
+  layout(root_gizmo, 595, 842, &page_gizmos_end, &page_graphic_list_stack);
+
+  paint_graphic((struct graphic_gizmo *)page_gizmos->gizmo, &content_bytes,
+      &font_info);
+  generate_pdf_file("output.pdf", ttf, ttf_size, &font_info,
+      &content_bytes);
+
   stack_free(&sym_stack, 0);
+  stack_free(&gizmo_stack, 0);
+  stack_free(&page_graphic_list_stack, 0);
+  bytes_free(&content_bytes);
   free(document);
   free(ttf);
 
