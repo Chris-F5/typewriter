@@ -117,7 +117,7 @@ style_container(const int **operands, const struct symbol *sym,
   gizmo_list  = stack_allocate(gizmo_stack, sizeof(struct gizmo_list));
   container = stack_allocate(gizmo_stack, sizeof(struct container_gizmo));
   container->gizmo_type = GIZMO_CONTAINER;
-  container->orientation = ORIENTATION_HORIZONTAL;
+  container->orientation = (*operands)[0];
   container->gizmos = NULL;
   gizmo_list->next = NULL;
   gizmo_list->gizmo = (struct gizmo *)container;
