@@ -40,7 +40,7 @@ static void parse_symbol_string(const int **operands, const char **input,
 static void parse_choice(const int **operands, const char **input,
     struct symbol ***next_symbol, struct stack *symbol_stack,
     struct parse_error *error);
-static void parse_seq(const int **operands, const char **input,
+static void parse_sequence(const int **operands, const char **input,
     struct symbol ***next_symbol, struct stack *symbol_stack,
     struct parse_error *error);
 static void parse_any(const int **operands, const char **input,
@@ -60,7 +60,7 @@ const Parser parsers[] = {
   [PARSE_SYMBOL] = parse_symbol,
   [PARSE_SYMBOL_STRING] = parse_symbol_string,
   [PARSE_CHOICE] = parse_choice,
-  [PARSE_SEQ] = parse_seq,
+  [PARSE_SEQ] = parse_sequence,
   [PARSE_ANY] = parse_any,
   [PARSE_SOME] = parse_some,
   [PARSE_OPTIONAL] = parse_optional,
@@ -180,7 +180,7 @@ parse_choice(const int **operands, const char **input,
 }
 
 static void
-parse_seq(const int **operands, const char **input,
+parse_sequence(const int **operands, const char **input,
     struct symbol ***next_symbol, struct stack *symbol_stack,
     struct parse_error *error)
 {

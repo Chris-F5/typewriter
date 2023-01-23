@@ -29,10 +29,11 @@ enum symbol_type {
 
 enum gizmo_type {
   GIZMO_GRAPHIC,
+  GIZMO_BREAK,
   GIZMO_CONTAINER,
 };
 
-enum component_orientation {
+enum container_orientation {
   ORIENTATION_VERTICAL,
   ORIENTATION_HORIZONTAL,
 };
@@ -73,6 +74,13 @@ struct container_gizmo {
   int gizmo_type;
   int orientation;
   struct gizmo_list *gizmos;
+};
+
+struct break_gizmo {
+  int gizmo_type;
+  struct gizmo *pre_break;
+  struct gizmo *post_break;
+  struct gizmo *no_break;
 };
 
 struct graphic_gizmo {
@@ -141,8 +149,7 @@ void layout(const struct container_gizmo *container, int width, int height,
     struct gizmo_list ***list_end, struct stack *stack);
 
 /* paint.c */
-void
-paint_graphic(const struct graphic_gizmo *graphic, struct bytes *content,
+void paint_graphic(const struct graphic_gizmo *graphic, struct bytes *content,
     struct font_info *font_info);
 
 /* ttf.c */
