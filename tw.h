@@ -78,9 +78,9 @@ struct container_gizmo {
 
 struct break_gizmo {
   int gizmo_type;
-  struct gizmo *pre_break;
-  struct gizmo *post_break;
-  struct gizmo *no_break;
+  struct gizmo_list *no_break;
+  struct gizmo_list *pre_break;
+  struct gizmo_list *post_break;
 };
 
 struct graphic_gizmo {

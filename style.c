@@ -27,6 +27,9 @@ static void style_container(const int **operands, const struct symbol *sym,
 static void style_space(const int **operands, const struct symbol *sym,
     struct gizmo_list ***list_end, struct stack *gizmo_stack,
     const struct font_info *font_info);
+static void style_break(const int **operands, const struct symbol *sym,
+    struct gizmo_list ***list_end, struct stack *gizmo_stack,
+    const struct font_info *font_info);
 static void style(const int **command, const struct symbol *sym,
     struct gizmo_list ***list_end, struct stack *gizmo_stack,
     const struct font_info *font_info);
@@ -42,7 +45,10 @@ const int * const style_map[] = {
   [SYMBOL_WORD] = (int []) {
     STYLE_SEQ,
       STYLE_TEXT, 12,
-      STYLE_SPACE, 12,
+      STYLE_BREAK,
+        STYLE_SPACE, 12,
+	STYLE_NONE,
+	STYLE_NONE,
     END_STYLE,
   },
 };
@@ -53,6 +59,7 @@ const StyleFunction style_functions[] = {
   [STYLE_TEXT] = style_text,
   [STYLE_CONTAINER] = style_container,
   [STYLE_SPACE] = style_space,
+  [STYLE_BREAK] = style_break,
 };
 
 static void
@@ -161,6 +168,27 @@ style_space(const int **operands, const struct symbol *sym,
 }
 
 static void
+style_break(const int **operands, const struct symbol *sym,
+    struct gizmo_list ***list_end, struct stack *gizmo_stack,
+    const struct font_info *font_info)
+{
+  struct break_gizmo *gizmo;
+  struct gizmo_list **child_list_end;
+  gizmo = stack_allocate(gizmo_stack, sizeof(struct break_gizmo));
+  gizmo->gizmo_type = GIZMO_BREAK;
+  gizmo->no_break = NULL;
+  gizmo->pre_break = NULL;
+  gizmo->post_break = NULL;
+  child_list_end = &gizmo->no_break;
+  style(operands, sym, &child_list_end, gizmo_stack, font_info);
+  child_list_end = &gizmo->pre_break;
+  style(operands, sym, &child_list_end, gizmo_stack, font_info);
+  child_list_end = &gizmo->post_break;
+  style(operands, sym, &child_list_end, gizmo_stack, font_info);
+  append_gizmo((struct gizmo *)gizmo, list_end, gizmo_stack);
+}
+
+static void
 style(const int **command, const struct symbol *sym,
     struct gizmo_list ***list_end, struct stack *gizmo_stack,
     const struct font_info *font_info)
@@ -234,4 +262,5 @@ style_document(const struct symbol *sym, const struct font_info *font_info,
     return NULL;
   }
   return (struct container_gizmo *)list_start->gizmo;
+
 }
