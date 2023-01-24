@@ -14,6 +14,7 @@ typedef void (*StyleFunction)(const int **operands, const struct symbol *sym,
     struct gizmo_list ***list_end, struct stack *gizmo_stack,
     const struct font_info *font_info);
 
+static void append_gizmo(struct gizmo *gizmo, struct gizmo_list ***list_end, struct stack *stack);
 static void style_sequence(const int **operands, const struct symbol *sym,
     struct gizmo_list ***list_end, struct stack *gizmo_stack,
     const struct font_info *font_info);
@@ -55,6 +56,16 @@ const StyleFunction style_functions[] = {
 };
 
 static void
+append_gizmo(struct gizmo *gizmo, struct gizmo_list ***list_end, struct stack *stack)
+{
+  struct gizmo_list *list_entry;
+  list_entry = stack_allocate(stack, sizeof(struct gizmo_list));
+  list_entry->next = NULL;
+  list_entry->gizmo = gizmo;
+  *list_end = &(**list_end = list_entry)->next;
+}
+
+static void
 style_sequence(const int **operands, const struct symbol *sym,
     struct gizmo_list ***list_end, struct stack *gizmo_stack,
     const struct font_info *font_info)
@@ -70,12 +81,10 @@ style_text(const int **operands, const struct symbol *sym,
     const struct font_info *font_info)
 {
   int i;
-  struct gizmo_list *gizmo_list;
   struct graphic_gizmo *graphic;
   struct atom_list *atom_list;
   struct text_atom *atom;
 
-  gizmo_list = stack_allocate(gizmo_stack, sizeof(struct gizmo_list));
   graphic = stack_allocate(gizmo_stack, sizeof(struct graphic_gizmo));
   atom_list = stack_allocate(gizmo_stack, sizeof(struct atom_list));
   atom = stack_allocate(gizmo_stack, sizeof(struct text_atom));
@@ -97,11 +106,7 @@ style_text(const int **operands, const struct symbol *sym,
   graphic->height = atom->font_size;
   graphic->text = atom_list;
 
-  gizmo_list->next = NULL;
-  gizmo_list->gizmo = (struct gizmo *)graphic;
-
-  *list_end = &(**list_end = gizmo_list)->next;
-
+  append_gizmo((struct gizmo *)graphic, list_end, gizmo_stack);
   *operands += 1;
 }
 
@@ -112,15 +117,12 @@ style_container(const int **operands, const struct symbol *sym,
 {
   const int *child_style_command;
   struct container_gizmo *container;
-  struct gizmo_list **children_end, *gizmo_list;
+  struct gizmo_list **children_end;
   struct symbol *sym_child;
-  gizmo_list  = stack_allocate(gizmo_stack, sizeof(struct gizmo_list));
   container = stack_allocate(gizmo_stack, sizeof(struct container_gizmo));
   container->gizmo_type = GIZMO_CONTAINER;
   container->orientation = (*operands)[0];
   container->gizmos = NULL;
-  gizmo_list->next = NULL;
-  gizmo_list->gizmo = (struct gizmo *)container;
   children_end = &container->gizmos;
   for (sym_child = sym->children; sym_child; sym_child = sym_child->next) {
     if (sym_child->type > sizeof(style_map) / sizeof(style_map[0])
@@ -133,7 +135,8 @@ style_container(const int **operands, const struct symbol *sym,
         gizmo_stack, font_info);
   }
 
-  *list_end = &(**list_end = gizmo_list)->next;
+  append_gizmo((struct gizmo *)container, list_end, gizmo_stack);
+  *operands += 1;
 }
 
 static void
@@ -142,12 +145,10 @@ style_space(const int **operands, const struct symbol *sym,
     const struct font_info *font_info)
 {
   int font_size;
-  struct gizmo_list *gizmo_list;
   struct graphic_gizmo *graphic;
 
   font_size = (*operands)[0];
 
-  gizmo_list = stack_allocate(gizmo_stack, sizeof(struct gizmo_list));
   graphic = stack_allocate(gizmo_stack, sizeof(struct graphic_gizmo));
 
   graphic->gizmo_type = GIZMO_GRAPHIC;
@@ -155,11 +156,7 @@ style_space(const int **operands, const struct symbol *sym,
   graphic->height = font_size;
   graphic->text = NULL;
 
-  gizmo_list->next = NULL;
-  gizmo_list->gizmo = (struct gizmo *)graphic;
-
-  *list_end = &(**list_end = gizmo_list)->next;
-
+  append_gizmo((struct gizmo *)graphic, list_end, gizmo_stack);
   *operands += 1;
 }
 
