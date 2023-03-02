@@ -1,0 +1,8 @@
+GOTO 10 10
+TEXT /F1 12 Tf (hello world!) Tj
+GOTO 50 50
+TEXT /F1 12 Tf (next phrase) Tj
+PAGE
+GOTO 100 100
+TEXT /F1 16 Tf (page 2!) Tj
+PAGE

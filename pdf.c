@@ -1,89 +1,108 @@
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
 #include "tw.h"
 
-#include <stdlib.h>
-#include <string.h>
-
-static void start_obj(struct pdf_ctx *pdf, int obj);
-
-static void
-start_obj(struct pdf_ctx *pdf, int obj)
-{
-  pdf->obj_offsets[obj] = ftell(pdf->file);
-  fprintf(pdf->file, "%d 0 obj ", obj);
-}
-
 void
-pdf_init(struct pdf_ctx *pdf, FILE *file)
+init_pdf_xref_table(struct pdf_xref_table *xref)
 {
-  size_t written;
-  pdf->file = file;
-  pdf->obj_count = 0;
-  pdf->obj_allocated = 100;
-  pdf->obj_offsets = xmalloc(sizeof(long) * pdf->obj_allocated);
-  memset(pdf->obj_offsets, 0, sizeof(long) * pdf->obj_allocated);
-  /* Allocate the 'zero' object. */
-  pdf_allocate_obj(pdf);
-  fprintf(pdf->file, "%%PDF-1.7\n");
+  xref->obj_count = 0;
+  xref->allocated = 100;
+  xref->obj_offsets = xmalloc(xref->allocated * sizeof(long));
+  memset(xref->obj_offsets, 0, xref->allocated * sizeof(long));
 }
 
 int
-pdf_allocate_obj(struct pdf_ctx *pdf)
+allocate_pdf_obj(struct pdf_xref_table *xref)
 {
-  int obj;
-  obj = pdf->obj_count++;
-  while (obj >= pdf->obj_allocated) {
-    pdf->obj_offsets
-      = xrealloc(pdf->obj_offsets, sizeof(long) * (pdf->obj_allocated + 100));
-    memset(pdf->obj_offsets + pdf->obj_allocated * sizeof(long), 0,
-        sizeof(long) * (pdf->obj_allocated + 100));
-    pdf->obj_allocated += 100;
+  if (xref->obj_count == xref->allocated) {
+    xref->obj_offsets
+      = xrealloc(xref->obj_offsets, (xref->allocated + 100) * sizeof(long));
+    memset(xref->obj_offsets + xref->allocated, 0,
+        (xref->allocated + 100) * sizeof(long));
+    xref->allocated += 100;
   }
-  return obj;
+  return xref->obj_count++;
 }
 
 void
-pdf_add_true_type_program(struct pdf_ctx *pdf, int obj, const char *ttf,
-    long ttf_size)
+init_pdf_page_list(struct pdf_page_list *page_list)
 {
-  long i;
-  start_obj(pdf, obj);
-  fprintf(pdf->file, "<<\n\
+  page_list->count = 0;
+  page_list->allocated = 100;
+  page_list->page_objs = xmalloc(page_list->allocated * sizeof(int));
+}
+
+void
+pdf_page_list_append(struct pdf_page_list *page_list, int page)
+{
+  if (page_list->count == page_list->allocated) {
+    page_list->allocated += 100;
+    page_list->page_objs = xrealloc(page_list->page_objs, page_list->allocated);
+  }
+  page_list->page_objs[page_list->count++] = page;
+}
+
+void
+pdf_write_header(FILE *file)
+{
+  fprintf(file, "%%PDF-1.7\n");
+}
+
+void
+pdf_start_indirect_obj(FILE *file, struct pdf_xref_table *xref, int obj)
+{
+  xref->obj_offsets[obj] = ftell(file);
+  fprintf(file, "%d 0 obj\n", obj);
+}
+
+void
+pdf_end_indirect_obj(FILE *file)
+{
+  fprintf(file, "endobj\n");
+}
+
+void
+pdf_write_file_stream(FILE *pdf_file, FILE *data_file)
+{
+  long size, i;
+  fseek(data_file, 0, SEEK_END);
+  size = ftell(data_file);
+  fseek(data_file, 0, SEEK_SET);
+  fprintf(pdf_file, "<<\n\
   /Filter /ASCIIHexDecode\n\
   /Length %ld\n\
   /Length1 %ld\n\
-  >>\nstream\n", ttf_size * 2, ttf_size);
-  for (i = 0; i < ttf_size; i++)
-    fprintf(pdf->file, "%02x", (unsigned char)ttf[i]);
-  fprintf(pdf->file, "\nendstream\nendobj\n");
+  >>\nstream\n", size * 2, size);
+  for (i = 0; i < size; i++)
+    fprintf(pdf_file, "%02x", (unsigned char)fgetc(data_file));
+  fprintf(pdf_file, "\nendstream\n");
 }
 
 void
-pdf_add_stream(struct pdf_ctx *pdf, int obj, const char *bytes,
-    long bytes_count)
+pdf_write_text_stream(FILE *file, const char *data, long size)
 {
-  start_obj(pdf, obj);
-  fprintf(pdf->file, "<< /Length %ld >> stream\n", bytes_count);
-  fwrite(bytes, 1, bytes_count, pdf->file);
-  fprintf(pdf->file, "\nendstream\nendobj\n");
+  fprintf(file, "<< /Length %ld >> stream\n", size);
+  fwrite(data, 1, size, file);
+  fprintf(file, "\nendstream\n");
 }
 
 void
-pdf_add_int_array(struct pdf_ctx *pdf, int obj, const int *values, int count)
+pdf_write_int_array(FILE *file, const int *values, int count)
 {
   int i;
-  start_obj(pdf, obj);
-  fprintf(pdf->file, "[\n ");
+  fprintf(file, "[\n ");
   for (i = 0; i < count; i++)
-    fprintf(pdf->file, " %d", values[i]);
-  fprintf(pdf->file, "\n]\nendobj\n");
+    fprintf(file, " %d", values[i]);
+  fprintf(file, "\n]\n");
 }
 
 void
-pdf_add_resources(struct pdf_ctx *pdf, int obj, int font_widths,
-    int font_descriptor, const char *font_name)
+pdf_write_resources(FILE *file, int font_widths, int font_descriptor,
+    const char *font_name)
 {
-  start_obj(pdf, obj);
-  fprintf(pdf->file, "<</Font << /F1 <<\n\
+  fprintf(file, "<</Font << /F1 <<\n\
   /Type /Font\n\
   /Subtype /TrueType\n\
   /BaseFont /%s\n\
@@ -91,17 +110,15 @@ pdf_add_resources(struct pdf_ctx *pdf, int obj, int font_widths,
   /LastChar 255\n\
   /Widths %d 0 R\n\
   /FontDescriptor %d 0 R\n\
-  >> >> >> endobj\n", font_name, font_widths, font_descriptor);
+  >> >> >>\n", font_name, font_widths, font_descriptor);
 }
 
 void
-pdf_add_font_descriptor(struct pdf_ctx *pdf, int obj, int font_file,
-    const char *font_name, int flags, int italic_angle, int ascent, int descent,
-    int cap_height, int stem_vertical, int min_x, int min_y, int max_x,
-    int max_y)
+pdf_write_font_descriptor(FILE *file, int font_file, const char *font_name,
+    int flags, int italic_angle, int ascent, int descent, int cap_height,
+    int stem_vertical, int min_x, int min_y, int max_x, int max_y)
 {
-  start_obj(pdf, obj);
-  fprintf(pdf->file, "<<\n\
+  fprintf(file, "<<\n\
   /Type /FontDescriptor\n\
   /FontName /%s\n\
   /FontFile2 %d 0 R\n\
@@ -112,64 +129,58 @@ pdf_add_font_descriptor(struct pdf_ctx *pdf, int obj, int font_file,
   /Descent %d\n\
   /CapHeight %d\n\
   /StemV %d\n\
-  >> endobj\n", font_name, font_file, flags, min_x, min_y, max_x, max_y,
-      italic_angle, ascent, descent, cap_height, stem_vertical);
+  >>\n", font_name, font_file, flags, min_x, min_y, max_x, max_y, italic_angle,
+      ascent, descent, cap_height, stem_vertical);
 }
 
 void
-pdf_add_page(struct pdf_ctx *pdf, int obj, int parent, int resources,
-    int content)
+pdf_write_page(FILE *file, int parent, int resources, int content)
 {
-  start_obj(pdf, obj);
-  fprintf(pdf->file, "<<\n\
+  fprintf(file, "<<\n\
   /Type /Page\n\
   /Resources %d 0 R\n\
   /Parent %d 0 R\n\
   /Contents %d 0 R\n\
-  >> endobj\n", resources, parent, content);
+  >>\n", resources, parent, content);
 }
 
 void
-pdf_add_page_list(struct pdf_ctx *pdf, int obj, const int *pages,
-    int page_count)
+pdf_write_page_list(FILE *file, const struct pdf_page_list *pages)
 {
   int i;
-  start_obj(pdf, obj);
-  /* 595x842 is a portrait A4 page. */
-  fprintf(pdf->file, "<<\n\
+  fprintf(file, "<<\n\
   /Type /Pages\n\
   /Kids [\n");
-  for (i = 0; i < page_count; i++)
-    fprintf(pdf->file, "    %d 0 R\n", pages[i]);
-  fprintf(pdf->file, "\
-    ]\n\
+  for (i = 0; i < pages->count; i++)
+    fprintf(file, "    %d 0 R\n", pages->page_objs[i]);
+  /* 595x842 is a portrait A4 page. */
+  fprintf(file, "    ]\n\
   /Count %d\n\
   /MediaBox [0 0 595 842]\n\
-  >> endobj\n", page_count);
+  >>\n", pages->count);
 }
 
 void
-pdf_add_catalog(struct pdf_ctx *pdf, int obj, int page_list)
+pdf_write_catalog(FILE *file, int page_list)
 {
-  start_obj(pdf, obj);
-  fprintf(pdf->file, "<<\n\
+  fprintf(file, "<<\n\
   /Type /Catalog\n\
   /Pages %d 0 R\n\
-  >> endobj\n", page_list);
+>>\n", page_list);
 }
 
 void
-pdf_end(struct pdf_ctx *pdf, int root_obj)
+pdf_write_footer(FILE *file, struct pdf_xref_table *xref, int root_obj)
 {
-  int xref_offset, obj;
-  xref_offset = ftell(pdf->file);
-  fprintf(pdf->file, "xref\n");
-  fprintf(pdf->file, "0 %d\n", pdf->obj_count);
-  fprintf(pdf->file, "000000000 65535 f \n");
-  for (obj = 1; obj < pdf->obj_count; obj++)
-    fprintf(pdf->file, "%09ld 00000 n \n", pdf->obj_offsets[obj]);
-  fprintf(pdf->file, "trailer << /Size %d /Root %d 0 R >>\n",
-      pdf->obj_count, root_obj);
-  fprintf(pdf->file, "startxref\n%d\n", xref_offset);
-  fprintf(pdf->file, "%%%%EOF");
+  int xref_offset, i;
+  xref_offset = ftell(file);
+  fprintf(file, "xref\n\
+0 %d\n\
+000000000 65535 f \n", xref->obj_count);
+  for (i = 1; i < xref->obj_count; i++)
+    fprintf(file, "%09ld 00000 n \n", xref->obj_offsets[i]);
+  fprintf(file, "trailer << /Size %d /Root %d 0 R >>\n\
+startxref\n\
+%d\n\
+%%%%EOF", xref->obj_count, root_obj, xref_offset);
 }

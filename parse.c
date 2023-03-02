@@ -1,333 +1,183 @@
-#include "tw.h"
-#include "config.h"
-
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
-struct symbol_parser {
-  int symbol;
-  int *parser;
+#include "tw.h"
+
+struct page_ctx {
+  int x, y;
 };
 
-struct parse_error {
-  int opcode;
-  const char *location;
+typedef int (*PageCommandParser)(FILE *file, struct page_ctx *page_ctx,
+    struct dbuffer *text_content);
+
+struct page_command {
+  const char *str;
+  PageCommandParser parser;
 };
 
-typedef void (*Parser)(const int **operands, const char **input,
-    struct symbol ***next_symbol, struct stack *symbol_stack,
-    struct parse_error *error);
+static int create_resources(FILE *pdf_file, struct pdf_xref_table *xref,
+    FILE *font_file);
+static int parse_goto(FILE *file, struct page_ctx *page_ctx,
+    struct dbuffer *text_content);
+static int parse_text(FILE *file, struct page_ctx *page_ctx,
+    struct dbuffer *text_content);
 
-static void parse(const int **operation, const char **input,
-    struct symbol ***next_symbol, struct stack *symbol_stack,
-    struct parse_error *error);
-static void parse_char(const int **operands, const char **input,
-    struct symbol ***next_symbol, struct stack *symbol_stack,
-    struct parse_error *error);
-static void parse_char_range(const int **operands, const char **input,
-    struct symbol ***next_symbol, struct stack *symbol_stack,
-    struct parse_error *error);
-static void parse_grammar(const int **operands, const char **input,
-    struct symbol ***next_symbol, struct stack *symbol_stack,
-    struct parse_error *error);
-static void parse_symbol(const int **operands, const char **input,
-    struct symbol ***next_symbol, struct stack *symbol_stack,
-    struct parse_error *error);
-static void parse_symbol_string(const int **operands, const char **input,
-    struct symbol ***next_symbol, struct stack *symbol_stack,
-    struct parse_error *error);
-static void parse_choice(const int **operands, const char **input,
-    struct symbol ***next_symbol, struct stack *symbol_stack,
-    struct parse_error *error);
-static void parse_sequence(const int **operands, const char **input,
-    struct symbol ***next_symbol, struct stack *symbol_stack,
-    struct parse_error *error);
-static void parse_any(const int **operands, const char **input,
-    struct symbol ***next_symbol, struct stack *symbol_stack,
-    struct parse_error *error);
-static void parse_some(const int **operands, const char **input,
-    struct symbol ***next_symbol, struct stack *symbol_stack,
-    struct parse_error *error);
-static void parse_optional(const int **operands, const char **input,
-    struct symbol ***next_symbol, struct stack *symbol_stack,
-    struct parse_error *error);
+static const char *new_page_str = "PAGE";
 
-const Parser parsers[] = {
-  [PARSE_CHAR] = parse_char,
-  [PARSE_CHAR_RANGE] = parse_char_range,
-  [PARSE_GRAMMAR] = parse_grammar,
-  [PARSE_SYMBOL] = parse_symbol,
-  [PARSE_SYMBOL_STRING] = parse_symbol_string,
-  [PARSE_CHOICE] = parse_choice,
-  [PARSE_SEQ] = parse_sequence,
-  [PARSE_ANY] = parse_any,
-  [PARSE_SOME] = parse_some,
-  [PARSE_OPTIONAL] = parse_optional,
+static const struct page_command *page_commands[] = {
+  &(struct page_command) {
+    "GOTO",
+    parse_goto,
+  },
+  &(struct page_command) {
+    "TEXT",
+    parse_text,
+  },
+  NULL,
 };
 
-static void
-parse_char(const int **operands, const char **input,
-    struct symbol ***next_symbol, struct stack *symbol_stack,
-    struct parse_error *error)
+static int
+create_resources(FILE *pdf_file, struct pdf_xref_table *xref, FILE *font_file)
 {
-  if (*input == NULL)
-    goto end;
-  if ((*operands)[0] == **input)
-    (*input)++;
-  else
-    *input = NULL;
-end:
-  *operands += 1;
+  struct font_info font_info;
+  int obj_font_descriptor, obj_font_widths, obj_font_file, obj_resources;
+
+  if (read_ttf(font_file, &font_info))
+    return -1;
+
+  obj_font_descriptor = allocate_pdf_obj(xref);
+  obj_font_widths = allocate_pdf_obj(xref);
+  obj_font_file = allocate_pdf_obj(xref);
+  obj_resources = allocate_pdf_obj(xref);
+
+  pdf_start_indirect_obj(pdf_file, xref, obj_font_descriptor);
+  pdf_write_font_descriptor(pdf_file, obj_font_file, "MyFont", 6, -10, 255, 255,
+      255, 10, font_info.x_min, font_info.y_min, font_info.x_max,
+      font_info.y_max);
+  pdf_end_indirect_obj(pdf_file);
+
+  pdf_start_indirect_obj(pdf_file, xref, obj_font_widths);
+  pdf_write_int_array(pdf_file, font_info.char_widths, 256);
+  pdf_end_indirect_obj(pdf_file);
+
+  pdf_start_indirect_obj(pdf_file, xref, obj_font_file);
+  pdf_write_file_stream(pdf_file, font_file);
+  pdf_end_indirect_obj(pdf_file);
+
+  pdf_start_indirect_obj(pdf_file, xref, obj_resources);
+  pdf_write_resources(pdf_file, obj_font_widths, obj_font_descriptor, "MyFont");
+  pdf_end_indirect_obj(pdf_file);
+
+  return obj_resources;
 }
 
 static void
-parse_char_range(const int **operands, const char **input,
-    struct symbol ***next_symbol, struct stack *symbol_stack,
-    struct parse_error *error)
+add_page(FILE *pdf_file, int obj_parent, int obj_resources,
+    struct pdf_xref_table *xref, struct pdf_page_list *page_list,
+    const struct dbuffer *text_content)
 {
-  if (*input == NULL)
-    goto end;
-  if (**input >= (*operands)[0] && **input <= (*operands)[1])
-    (*input)++;
-  else
-    *input = NULL;
-end:
-  *operands += 1;
+  int obj_content, obj_page;
+  obj_content = allocate_pdf_obj(xref);
+  obj_page = allocate_pdf_obj(xref);
+
+  pdf_start_indirect_obj(pdf_file, xref, obj_content);
+  pdf_write_text_stream(pdf_file, text_content->data, text_content->size);
+  pdf_end_indirect_obj(pdf_file);
+
+  pdf_start_indirect_obj(pdf_file, xref, obj_page);
+  pdf_write_page(pdf_file, obj_parent, obj_resources, obj_content);
+  pdf_end_indirect_obj(pdf_file);
+
+  pdf_page_list_append(page_list, obj_page);
 }
 
-static void
-parse_grammar(const int **operands, const char **input,
-    struct symbol ***next_symbol, struct stack *symbol_stack,
-    struct parse_error *error)
+static int
+parse_goto(FILE *file, struct page_ctx *page_ctx, struct dbuffer *text_content)
 {
-  const int *new_operation;
-  if (*input == NULL)
-    goto end;
-  new_operation = grammar[(*operands)[0]];
-  parse(&new_operation, input, next_symbol, symbol_stack, error);
-end:
-  *operands += 1;
+  fscanf(file, "%d %d\n", &page_ctx->x, &page_ctx->y);
+  printf("location: %d %d\n", page_ctx->x, page_ctx->y);
+  return 0;
 }
 
-static void
-parse_symbol(const int **operands, const char **input,
-    struct symbol ***next_symbol, struct stack *symbol_stack,
-    struct parse_error *error)
+static int
+parse_text(FILE *file, struct page_ctx *page_ctx,
+    struct dbuffer *text_content)
 {
-  struct symbol **next_child_symbol;
-  if (*input == NULL) {
-    *operands += 1;
-    parse(operands, NULL, NULL, NULL, NULL);
-    return;
-  }
-  **next_symbol = stack_allocate(symbol_stack, sizeof(struct symbol));
-  (**next_symbol)->type = (*operands)[0];
-  (**next_symbol)->str_len = 0;
-  (**next_symbol)->str = NULL;
-  (**next_symbol)->children = NULL;
-  (**next_symbol)->next = NULL;
-  *operands += 1;
-  next_child_symbol = &(**next_symbol)->children;
-  parse(operands, input, &next_child_symbol, symbol_stack, error);
-  *next_symbol = &(**next_symbol)->next;
-}
-
-static void
-parse_symbol_string(const int **operands, const char **input,
-    struct symbol ***next_symbol, struct stack *symbol_stack,
-    struct parse_error *error)
-{
-  struct symbol **next_child_symbol;
-  if (*input == NULL) {
-    *operands += 1;
-    parse(operands, NULL, NULL, NULL, NULL);
-    return;
-  }
-  **next_symbol = stack_allocate(symbol_stack, sizeof(struct symbol));
-  (**next_symbol)->type = (*operands)[0];
-  (**next_symbol)->str = *input;
-  (**next_symbol)->children = NULL;
-  (**next_symbol)->next = NULL;
-  *operands += 1;
-  next_child_symbol = &(**next_symbol)->children;
-  parse(operands, input, &next_child_symbol, symbol_stack, error);
-  /*
-   * If `*input` is NULL then `**next_symbol` will be discarded by the calling
-   * `parse` so it does not matter that `str_len` is set negative.
-   */
-  (**next_symbol)->str_len = *input - (**next_symbol)->str;
-  *next_symbol = &(**next_symbol)->next;
-}
-
-static void
-parse_choice(const int **operands, const char **input,
-    struct symbol ***next_symbol, struct stack *symbol_stack,
-    struct parse_error *error)
-{
-  const char *base_input;
-  base_input = *input;
-  while (**operands != END_PARSE)
-    if (base_input) {
-      *input = base_input;
-      parse(operands, input, next_symbol, symbol_stack, NULL);
-      if (*input)
-        base_input = NULL;
-    } else {
-      parse(operands, NULL, NULL, NULL, NULL);
+  int c;
+  dbuffer_printf(text_content, "1 0 0 1 %d %d Tm ", page_ctx->x, page_ctx->y);
+  while ( (c = fgetc(file)) != '\n') {
+    if (c == EOF) {
+      fprintf(stderr, "Unexpected EOF in text command\n");
+      return 1;
     }
-  (*operands) += 1;
+    dbuffer_putc(text_content, (char)c);
+  }
+  dbuffer_putc(text_content, '\n');
+  return 0;
 }
 
-static void
-parse_sequence(const int **operands, const char **input,
-    struct symbol ***next_symbol, struct stack *symbol_stack,
-    struct parse_error *error)
+int
+parse_pages(FILE *pages_file, FILE *font_file, FILE *pdf_file)
 {
-  while (**operands != END_PARSE)
-    if (*input)
-      parse(operands, input, next_symbol, symbol_stack, error);
-    else
-      parse(operands, NULL, NULL, NULL, NULL);
-  (*operands) += 1;
-}
+  int ret, scan, i;
+  char cmd_str[5];
+  struct page_ctx page_ctx;
+  struct dbuffer text_content;
+  const struct page_command *page_cmd;
+  struct pdf_xref_table xref_table;
+  struct pdf_page_list page_list;
+  int obj_resources, obj_page_list, obj_catalog;
+  ret = 0;
+  page_ctx.x = 0;
+  page_ctx.y = 0;
+  dbuffer_init(&text_content, 1024 * 4, 1024 * 4);
+  dbuffer_printf(&text_content, "0 0 0 rg\nBT\n");
+  init_pdf_xref_table(&xref_table);
+  init_pdf_page_list(&page_list);
 
-static void
-parse_any(const int **operands, const char **input,
-    struct symbol ***next_symbol, struct stack *symbol_stack,
-    struct parse_error *error)
-{
-  const int *op;
-  const char *last_input;
-  op = *operands;
-  while (*input) {
-    last_input = *input;
-    *operands = op;
-    parse(operands, input, next_symbol, symbol_stack, NULL);
-  }
-  *input = last_input;
-}
+  allocate_pdf_obj(&xref_table); /* Allocate the 'zero' object. */
+  pdf_write_header(pdf_file);
+  obj_resources = create_resources(pdf_file, &xref_table, font_file);
+  obj_page_list = allocate_pdf_obj(&xref_table);
 
-static void
-parse_some(const int **operands, const char **input,
-    struct symbol ***next_symbol, struct stack *symbol_stack,
-    struct parse_error *error)
-{
-  const int *op;
-  op = *operands;
-  parse(operands, input, next_symbol, symbol_stack, error);
-  if (*input) {
-    *operands = op;
-    parse_any(operands, input, next_symbol, symbol_stack, error);
-  }
-}
-
-static void
-parse_optional(const int **operands, const char **input,
-    struct symbol ***next_symbol, struct stack *symbol_stack,
-    struct parse_error *error)
-{
-  const char *base_input;
-  base_input = *input;
-  parse(operands, input, next_symbol, symbol_stack, NULL);
-  if (*input == NULL)
-    *input = base_input;
-}
-
-static void
-parse(const int **operation, const char **input, struct symbol ***next_symbol,
-    struct stack *symbol_stack, struct parse_error *error)
-{
-
-  int opcode;
-  Parser parser;
-  int stack_height_base;
-  const char *input_base;
-  struct symbol **next_symbol_base;
-
-  opcode = *(*operation)++;
-  if (opcode >= sizeof(parsers) / sizeof(parsers[0])) {
-    fprintf(stderr, "Unrecognised parse opcode %d\n", opcode);
-    return;
-  }
-  parser = parsers[opcode];
-  if (parser == NULL) {
-    fprintf(stderr, "Unrecognised parse opcode %d\n", opcode);
-    return;
-  }
-
-  if (input == NULL || *input == NULL) {
-    parser(operation, &(const char *){NULL}, NULL, NULL, NULL);
-    return;
-  }
-
-  stack_height_base = symbol_stack->height;
-  next_symbol_base = *next_symbol;
-  input_base = *input;
-
-  parser(operation, input, next_symbol, symbol_stack, error);
-
-  if (*input == NULL) {
-    *next_symbol = next_symbol_base;
-    **next_symbol = NULL;
-    stack_free(symbol_stack, stack_height_base);
-    if (error) {
-      error->opcode = opcode;
-      error->location = input_base;
+next_command:
+    scan = fscanf(pages_file, "%4s", cmd_str);
+    if (scan == EOF)
+      goto finish_parse;
+    if (scan < 1)
+      cmd_str[0] = '\0';
+    if (strcmp(cmd_str, new_page_str) == 0) {
+      fscanf(pages_file, "\n");
+      dbuffer_printf(&text_content, "ET");
+      add_page(pdf_file, obj_page_list, obj_resources, &xref_table, &page_list,
+          &text_content);
+      text_content.size = 0;
+      dbuffer_printf(&text_content, "0 0 0 rg\nBT\n");
+      goto next_command;
     }
-  }
-}
+    i = 0;
+    while ( (page_cmd = page_commands[i++]) )
+      if (strcmp(cmd_str, page_cmd->str) == 0) {
+        ret = page_cmd->parser(pages_file, &page_ctx, &text_content);
+        if (ret)
+          goto finish_parse;
+        else
+          goto next_command;
+      }
+    ret = 1;
+    fprintf(stderr, "Failed to parse page command '%s'\n", cmd_str);
+finish_parse:
 
-void
-print_symbol_tree(struct symbol* sym, int indent)
-{
-  int i;
-  for (i = 0; i < indent * 2; i++) putchar(' ');
-  printf("%d\n", sym->type);
-  if (sym->str) {
-    for (i = 0; i < indent * 2; i++) putchar(' ');
-    putchar('"');
-    fwrite(sym->str, 1, sym->str_len, stdout);
-    putchar('"');
-    putchar('\n');
-  }
-  sym = sym->children;
-  while (sym) {
-    print_symbol_tree(sym, indent + 1);
-    sym = sym->next;
-  }
-}
+  pdf_start_indirect_obj(pdf_file, &xref_table, obj_page_list);
+  pdf_write_page_list(pdf_file, &page_list);
+  pdf_end_indirect_obj(pdf_file);
 
-struct symbol *
-parse_document(const char *document, struct stack *sym_stack)
-{
-  struct symbol *root_sym;
-  struct parse_error parse_error;
-  const char *input;
-  const int *operation;
-  struct symbol **next_child;
+  obj_catalog = allocate_pdf_obj(&xref_table);
+  pdf_start_indirect_obj(pdf_file, &xref_table, obj_catalog);
+  pdf_write_catalog(pdf_file, obj_page_list);
+  pdf_end_indirect_obj(pdf_file);
 
-  parse_error.opcode = 0;
-  parse_error.location = NULL;
-
-  input = document;
-  operation = grammar[GRAMMAR_ROOT];
-  root_sym = stack_allocate(sym_stack, sizeof(struct symbol));
-  root_sym->type = SYMBOL_ROOT;
-  root_sym->str_len = 0;
-  root_sym->str = 0;
-  root_sym->children = NULL;
-  root_sym->next = NULL;
-  next_child = &root_sym->children;
-  parse(&operation, &input, &next_child, sym_stack, &parse_error);
-  if (!input) {
-    fprintf(stderr, "Failed to parse document. %s\n", parse_error.location);
-    return NULL;
-  }
-  if (*input != '\0') {
-    fprintf(stderr,
-        "Failed to parse document at: \n== START ==\n%s=== END ===\n", input);
-    return NULL;
-  }
-  return root_sym;
+  pdf_write_footer(pdf_file, &xref_table, obj_catalog);
+  dbuffer_free(&text_content);
+  return ret;
 }

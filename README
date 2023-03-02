@@ -3,8 +3,7 @@ Typewriter
 
 UNDER DEVELOPMENT
 
-A simple markup language.
-
-* written in C
-* no library dependencies
-* outputs pdf
+A document formatting system.
+* Written in C.
+* No library dependencies.
+* Outputs PDF file.
