@@ -17,8 +17,13 @@ struct page_command {
 
 static int create_resources(FILE *pdf_file, struct pdf_xref_table *xref,
     FILE *font_file);
+static void add_page(FILE *pdf_file, int obj_parent, int obj_resources,
+    struct pdf_xref_table *xref, struct pdf_page_list *page_list,
+    const struct dbuffer *text_content);
 static int parse_goto(FILE *file, struct page_ctx *page_ctx,
     struct dbuffer *text_content);
+static int parse_move(FILE *file, struct page_ctx *page_ctx, struct dbuffer
+    *text_content);
 static int parse_text(FILE *file, struct page_ctx *page_ctx,
     struct dbuffer *text_content);
 
@@ -28,6 +33,10 @@ static const struct page_command *page_commands[] = {
   &(struct page_command) {
     "GOTO",
     parse_goto,
+  },
+  &(struct page_command) {
+    "MOVE",
+    parse_move,
   },
   &(struct page_command) {
     "TEXT",
@@ -95,7 +104,16 @@ static int
 parse_goto(FILE *file, struct page_ctx *page_ctx, struct dbuffer *text_content)
 {
   fscanf(file, "%d %d\n", &page_ctx->x, &page_ctx->y);
-  printf("location: %d %d\n", page_ctx->x, page_ctx->y);
+  return 0;
+}
+
+static int
+parse_move(FILE *file, struct page_ctx *page_ctx, struct dbuffer *text_content)
+{
+  int xo, yo;
+  fscanf(file, "%d %d\n", &xo, &yo);
+  page_ctx->x += xo;
+  page_ctx->y += yo;
   return 0;
 }
 
