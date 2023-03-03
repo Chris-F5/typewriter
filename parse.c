@@ -104,6 +104,7 @@ static int
 parse_goto(FILE *file, struct page_ctx *page_ctx, struct dbuffer *text_content)
 {
   fscanf(file, "%d %d\n", &page_ctx->x, &page_ctx->y);
+  dbuffer_printf(text_content, "1 0 0 1 %d %d Tm\n", page_ctx->x, page_ctx->y);
   return 0;
 }
 
@@ -114,6 +115,7 @@ parse_move(FILE *file, struct page_ctx *page_ctx, struct dbuffer *text_content)
   fscanf(file, "%d %d\n", &xo, &yo);
   page_ctx->x += xo;
   page_ctx->y += yo;
+  dbuffer_printf(text_content, "1 0 0 1 %d %d Tm\n", page_ctx->x, page_ctx->y);
   return 0;
 }
 
@@ -122,7 +124,6 @@ parse_text(FILE *file, struct page_ctx *page_ctx,
     struct dbuffer *text_content)
 {
   int c;
-  dbuffer_printf(text_content, "1 0 0 1 %d %d Tm ", page_ctx->x, page_ctx->y);
   while ( (c = fgetc(file)) != '\n') {
     if (c == EOF) {
       fprintf(stderr, "Unexpected EOF in text command\n");
@@ -160,6 +161,7 @@ parse_pages(FILE *pages_file, FILE *font_file, FILE *pdf_file)
 
 next_command:
     scan = fscanf(pages_file, "%4s", cmd_str);
+    fscanf(pages_file, " ");
     if (scan == EOF)
       goto finish_parse;
     if (scan < 1)
