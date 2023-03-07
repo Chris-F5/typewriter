@@ -1,10 +1,18 @@
 CC=gcc
 CFLAGS=-g -Wall
 
+all: tw line_break
+
 tw: tw.o error.o dbuffer.o ttf.o pdf.o parse.o
 	$(CC) $^ -o $@
 
+line_break: line_break.o error.o dbuffer.o ttf.o
+	$(CC) $^ -o $@
+
 tw.o: tw.c tw.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+line_break.o: line_break.c tw.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 error.o: error.c tw.h
