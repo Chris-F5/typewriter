@@ -23,12 +23,12 @@ parse_record(FILE *file, struct record *record)
   record->field_count = 0;
   for (;;) {
     c = fgetc(file);
-    if (c == EOF || c == '\n') {
+    if (c == EOF || (c == '\n' && record->field_count)) {
       if (in_field)
         dbuffer_putc(&record->string, '\0');
       break;
     }
-    if (!in_field && c != ' ') {
+    if (!in_field && c != ' ' && c != '\n') {
       /* Start field. */
       in_field = 1;
       if (record->field_count == record->fields_allocated) {
@@ -71,6 +71,8 @@ parse_record(FILE *file, struct record *record)
     fprintf(stderr, "Failed to parse record: unterminated string.\n");
     goto parse_error;
   }
+  if (record->field_count == 0)
+    return EOF;
   return 0;
 parse_error:
   record->field_count = 0;
