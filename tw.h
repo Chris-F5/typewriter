@@ -7,6 +7,13 @@ struct dbuffer {
   char *data;
 };
 
+struct record {
+  struct dbuffer string;
+  int field_count;
+  int fields_allocated;
+  const char **fields;
+};
+
 struct stack {
   int page_size, height;
   struct stack_page {
@@ -47,6 +54,11 @@ void dbuffer_init(struct dbuffer *buf, int initial, int increment);
 void dbuffer_putc(struct dbuffer *buf, char c);
 void dbuffer_printf(struct dbuffer *buf, const char *format, ...);
 void dbuffer_free(struct dbuffer *buf);
+
+/* parse.c */
+void init_record(struct record *record);
+int parse_record(FILE *file, struct record *record);
+void free_record(struct record *record);
 
 /* stack.c */
 void stack_init(struct stack *stack, int page_size);
