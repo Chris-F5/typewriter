@@ -136,7 +136,7 @@ parse_text(FILE *file, struct page_ctx *page_ctx,
 }
 
 int
-parse_pages(FILE *pages_file, FILE *font_file, FILE *pdf_file)
+print_pages(FILE *pages_file, FILE *font_file, FILE *pdf_file)
 {
   int ret, scan, i;
   char cmd_str[5];

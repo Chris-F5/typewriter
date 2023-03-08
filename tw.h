@@ -79,5 +79,5 @@ void pdf_write_page_list(FILE *file, const struct pdf_page_list *pages);
 void pdf_write_catalog(FILE *file, int page_list);
 void pdf_write_footer(FILE *file, struct pdf_xref_table *xref, int root_obj);
 
-/* parse.c */
-int parse_pages(FILE *pages_file, FILE *font_file, FILE *pdf_file);
+/* print_pages.c */
+int print_pages(FILE *pages_file, FILE *font_file, FILE *pdf_file);
