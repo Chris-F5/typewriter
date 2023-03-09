@@ -17,7 +17,7 @@ struct page_command {
 
 static int create_resources(FILE *pdf_file, struct pdf_xref_table *xref,
     FILE *font_file);
-static void add_page(FILE *pdf_file, int obj_parent, int obj_resources,
+static void add_page(FILE *pdf_file, int obj_parent,
     struct pdf_xref_table *xref, struct pdf_page_list *page_list,
     const struct dbuffer *text_content);
 static int parse_goto(FILE *file, struct page_ctx *page_ctx,
@@ -81,9 +81,8 @@ create_resources(FILE *pdf_file, struct pdf_xref_table *xref, FILE *font_file)
 }
 
 static void
-add_page(FILE *pdf_file, int obj_parent, int obj_resources,
-    struct pdf_xref_table *xref, struct pdf_page_list *page_list,
-    const struct dbuffer *text_content)
+add_page(FILE *pdf_file, int obj_parent, struct pdf_xref_table *xref,
+    struct pdf_page_list *page_list, const struct dbuffer *text_content)
 {
   int obj_content, obj_page;
   obj_content = allocate_pdf_obj(xref);
@@ -94,7 +93,7 @@ add_page(FILE *pdf_file, int obj_parent, int obj_resources,
   pdf_end_indirect_obj(pdf_file);
 
   pdf_start_indirect_obj(pdf_file, xref, obj_page);
-  pdf_write_page(pdf_file, obj_parent, obj_resources, obj_content);
+  pdf_write_page(pdf_file, obj_parent, obj_content);
   pdf_end_indirect_obj(pdf_file);
 
   pdf_page_list_append(page_list, obj_page);
@@ -169,7 +168,7 @@ next_command:
     if (strcmp(cmd_str, new_page_str) == 0) {
       fscanf(pages_file, "\n");
       dbuffer_printf(&text_content, "ET");
-      add_page(pdf_file, obj_page_list, obj_resources, &xref_table, &page_list,
+      add_page(pdf_file, obj_page_list, &xref_table, &page_list,
           &text_content);
       text_content.size = 0;
       dbuffer_printf(&text_content, "0 0 0 rg\nBT\n");
@@ -189,7 +188,7 @@ next_command:
 finish_parse:
 
   pdf_start_indirect_obj(pdf_file, &xref_table, obj_page_list);
-  pdf_write_page_list(pdf_file, &page_list);
+  pdf_write_page_list(pdf_file, &page_list, obj_resources);
   pdf_end_indirect_obj(pdf_file);
 
   obj_catalog = allocate_pdf_obj(&xref_table);

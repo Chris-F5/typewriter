@@ -70,6 +70,9 @@ void *stack_pop_pointer(struct stack *stack);
 /* ttf.c */
 int read_ttf(FILE *file, struct font_info *info);
 
+/* typeface.c */
+void open_typeface(FILE *typeface_file);
+
 /* pdf.c */
 void init_pdf_xref_table(struct pdf_xref_table *xref);
 int allocate_pdf_obj(struct pdf_xref_table *xref);
@@ -86,8 +89,9 @@ void pdf_write_resources(FILE *file, int font_widths, int font_descriptor,
 void pdf_write_font_descriptor(FILE *file, int font_file, const char *font_name,
     int flags, int italic_angle, int ascent, int descent, int cap_height,
     int stem_vertical, int min_x, int min_y, int max_x, int max_y);
-void pdf_write_page(FILE *file, int parent, int resources, int content);
-void pdf_write_page_list(FILE *file, const struct pdf_page_list *pages);
+void pdf_write_page(FILE *file, int parent, int content);
+void pdf_write_page_list(FILE *file, const struct pdf_page_list *pages,
+    int resources);
 void pdf_write_catalog(FILE *file, int page_list);
 void pdf_write_footer(FILE *file, struct pdf_xref_table *xref, int root_obj);
 

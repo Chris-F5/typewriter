@@ -134,23 +134,24 @@ pdf_write_font_descriptor(FILE *file, int font_file, const char *font_name,
 }
 
 void
-pdf_write_page(FILE *file, int parent, int resources, int content)
+pdf_write_page(FILE *file, int parent, int content)
 {
   fprintf(file, "<<\n\
   /Type /Page\n\
-  /Resources %d 0 R\n\
   /Parent %d 0 R\n\
   /Contents %d 0 R\n\
-  >>\n", resources, parent, content);
+  >>\n", parent, content);
 }
 
 void
-pdf_write_page_list(FILE *file, const struct pdf_page_list *pages)
+pdf_write_page_list(FILE *file, const struct pdf_page_list *pages,
+    int resources)
 {
   int i;
   fprintf(file, "<<\n\
   /Type /Pages\n\
-  /Kids [\n");
+  /Resources %d 0 R\n\
+  /Kids [\n", resources);
   for (i = 0; i < pages->count; i++)
     fprintf(file, "    %d 0 R\n", pages->page_objs[i]);
   /* 595x842 is a portrait A4 page. */
