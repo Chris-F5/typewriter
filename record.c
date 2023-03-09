@@ -8,8 +8,19 @@ init_record(struct record *record)
 {
   dbuffer_init(&record->string, 1024 * 2, 1024 * 2);
   record->field_count = 0;
-  record->fields_allocated = 12;
+  record->fields_allocated = 32;
   record->fields = xmalloc(record->fields_allocated * sizeof(char *));
+}
+
+void
+begin_field(struct record *record)
+{
+  if (record->field_count == record->fields_allocated) {
+    record->fields_allocated += 32;
+    record->fields = xrealloc(record->fields, record->fields_allocated);
+  }
+  record->fields[record->field_count++] = record->string.data
+    + record->string.size;
 }
 
 int
@@ -31,12 +42,7 @@ parse_record(FILE *file, struct record *record)
     if (!in_field && c != ' ' && c != '\n') {
       /* Start field. */
       in_field = 1;
-      if (record->field_count == record->fields_allocated) {
-        record->fields_allocated += 12;
-        record->fields = xrealloc(record->fields, record->fields_allocated);
-      }
-      record->fields[record->field_count++]
-        = record->string.data + record->string.size;
+      begin_field(record);
       if (c == '"')
         in_string = 1;
       else

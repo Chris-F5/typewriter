@@ -3,7 +3,7 @@ CFLAGS=-g -Wall
 
 all: tw line_break
 
-tw: tw.o error.o dbuffer.o parse.o ttf.o pdf.o print_pages.o
+tw: tw.o error.o dbuffer.o record.o ttf.o pdf.o print_pages.o
 	$(CC) $^ -o $@
 
 line_break: line_break.o error.o dbuffer.o ttf.o
@@ -21,7 +21,7 @@ error.o: error.c tw.h
 dbuffer.o: dbuffer.c tw.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
-parse.o: parse.c tw.h
+record.o: record.c tw.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 ttf.o: ttf.c tw.h

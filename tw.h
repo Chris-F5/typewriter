@@ -55,8 +55,9 @@ void dbuffer_putc(struct dbuffer *buf, char c);
 void dbuffer_printf(struct dbuffer *buf, const char *format, ...);
 void dbuffer_free(struct dbuffer *buf);
 
-/* parse.c */
+/* record.c */
 void init_record(struct record *record);
+void begin_field(struct record *record);
 int parse_record(FILE *file, struct record *record);
 void free_record(struct record *record);
 
