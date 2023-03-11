@@ -34,9 +34,12 @@ struct font_info {
   int char_widths[256];
 };
 
+struct pdf_resources {
+  struct record fonts_used;
+};
+
 struct pdf_page_list {
-  int parent;
-  int count, allocated;
+  int page_count, pages_allocated;
   int *page_objs;
 };
 
@@ -59,6 +62,7 @@ void dbuffer_free(struct dbuffer *buf);
 void init_record(struct record *record);
 void begin_field(struct record *record);
 int parse_record(FILE *file, struct record *record);
+int find_field(const struct record *record, const char *field_str);
 void free_record(struct record *record);
 
 /* stack.c */
@@ -75,26 +79,34 @@ int read_ttf(FILE *file, struct font_info *info);
 void open_typeface(FILE *typeface_file);
 
 /* pdf.c */
-void init_pdf_xref_table(struct pdf_xref_table *xref);
-int allocate_pdf_obj(struct pdf_xref_table *xref);
-void init_pdf_page_list(struct pdf_page_list *page_list);
-void pdf_page_list_append(struct pdf_page_list *page_list, int page);
 void pdf_write_header(FILE *file);
 void pdf_start_indirect_obj(FILE *file, struct pdf_xref_table *xref, int obj);
 void pdf_end_indirect_obj(FILE *file);
 void pdf_write_file_stream(FILE *pdf_file, FILE *data_file);
 void pdf_write_text_stream(FILE *file, const char *data, long size);
 void pdf_write_int_array(FILE *file, const int *values, int count);
-void pdf_write_resources(FILE *file, int font_widths, int font_descriptor,
-    const char *font_name);
 void pdf_write_font_descriptor(FILE *file, int font_file, const char *font_name,
-    int flags, int italic_angle, int ascent, int descent, int cap_height,
+    int italic_angle, int ascent, int descent, int cap_height,
     int stem_vertical, int min_x, int min_y, int max_x, int max_y);
 void pdf_write_page(FILE *file, int parent, int content);
-void pdf_write_page_list(FILE *file, const struct pdf_page_list *pages,
-    int resources);
+void pdf_write_font(FILE *file, const char *font_name, int font_descriptor,
+    int font_widths);
+void pdf_write_pages(FILE *file, int resources, int page_count,
+    const int *page_objs);
 void pdf_write_catalog(FILE *file, int page_list);
-void pdf_write_footer(FILE *file, struct pdf_xref_table *xref, int root_obj);
+void init_pdf_xref_table(struct pdf_xref_table *xref);
+int allocate_pdf_obj(struct pdf_xref_table *xref);
+void pdf_add_footer(FILE *file, const struct pdf_xref_table *xref,
+    int root_obj);
+void free_pdf_xref_table(struct pdf_xref_table *xref);
+void init_pdf_resources(struct pdf_resources *resources);
+void include_font_resource(struct pdf_resources *resources, const char *font);
+void pdf_add_resources(FILE *pdf_file, FILE *typeface_file, int resources_obj,
+    const struct pdf_resources *resources, struct pdf_xref_table *xref);
+void free_pdf_resources(struct pdf_resources *resources);
+void init_pdf_page_list(struct pdf_page_list *page_list);
+void add_pdf_page(struct pdf_page_list *page_list, int page);
+void free_pdf_page_list(struct pdf_page_list *page_list);
 
 /* print_pages.c */
 int print_pages(FILE *pages_file, FILE *font_file, FILE *pdf_file);

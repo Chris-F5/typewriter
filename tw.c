@@ -5,14 +5,13 @@
 int
 main(int argc, char **argv)
 {
-  FILE *pages_file, *font_file, *pdf_file;
+  FILE *pages_file, *typeface_file, *pdf_file;
   pages_file = stdin;
-  font_file = fopen("./cmu.serif-roman.ttf", "rb");
+  typeface_file = fopen("./typeface", "r");
   pdf_file = fopen("./output.pdf", "w");
-  print_pages(pages_file, font_file, pdf_file);
+  print_pages(pages_file, typeface_file, pdf_file);
   fclose(pages_file);
-  fclose(font_file);
+  fclose(typeface_file);
   fclose(pdf_file);
-  printf("DONE\n");
   return 0;
 }

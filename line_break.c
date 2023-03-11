@@ -144,7 +144,7 @@ line_change_style(struct line *line, const struct style *new_style)
     return;
   line_close_string(line);
   if (line->style.font_size != new_style->font_size)
-    dbuffer_printf(&line->buffer, "/F1 %d Tf ", new_style->font_size);
+    dbuffer_printf(&line->buffer, "/Regular %d Tf ", new_style->font_size);
   line->style = *new_style;
 }
 

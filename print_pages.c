@@ -15,8 +15,6 @@ struct page_command {
   PageCommandParser parser;
 };
 
-static int create_resources(FILE *pdf_file, struct pdf_xref_table *xref,
-    FILE *font_file);
 static void add_page(FILE *pdf_file, int obj_parent,
     struct pdf_xref_table *xref, struct pdf_page_list *page_list,
     const struct dbuffer *text_content);
@@ -45,41 +43,6 @@ static const struct page_command *page_commands[] = {
   NULL,
 };
 
-static int
-create_resources(FILE *pdf_file, struct pdf_xref_table *xref, FILE *font_file)
-{
-  struct font_info font_info;
-  int obj_font_descriptor, obj_font_widths, obj_font_file, obj_resources;
-
-  if (read_ttf(font_file, &font_info))
-    return -1;
-
-  obj_font_descriptor = allocate_pdf_obj(xref);
-  obj_font_widths = allocate_pdf_obj(xref);
-  obj_font_file = allocate_pdf_obj(xref);
-  obj_resources = allocate_pdf_obj(xref);
-
-  pdf_start_indirect_obj(pdf_file, xref, obj_font_descriptor);
-  pdf_write_font_descriptor(pdf_file, obj_font_file, "MyFont", 6, -10, 255, 255,
-      255, 10, font_info.x_min, font_info.y_min, font_info.x_max,
-      font_info.y_max);
-  pdf_end_indirect_obj(pdf_file);
-
-  pdf_start_indirect_obj(pdf_file, xref, obj_font_widths);
-  pdf_write_int_array(pdf_file, font_info.char_widths, 256);
-  pdf_end_indirect_obj(pdf_file);
-
-  pdf_start_indirect_obj(pdf_file, xref, obj_font_file);
-  pdf_write_file_stream(pdf_file, font_file);
-  pdf_end_indirect_obj(pdf_file);
-
-  pdf_start_indirect_obj(pdf_file, xref, obj_resources);
-  pdf_write_resources(pdf_file, obj_font_widths, obj_font_descriptor, "MyFont");
-  pdf_end_indirect_obj(pdf_file);
-
-  return obj_resources;
-}
-
 static void
 add_page(FILE *pdf_file, int obj_parent, struct pdf_xref_table *xref,
     struct pdf_page_list *page_list, const struct dbuffer *text_content)
@@ -96,7 +59,7 @@ add_page(FILE *pdf_file, int obj_parent, struct pdf_xref_table *xref,
   pdf_write_page(pdf_file, obj_parent, obj_content);
   pdf_end_indirect_obj(pdf_file);
 
-  pdf_page_list_append(page_list, obj_page);
+  add_pdf_page(page_list, obj_page);
 }
 
 static int
@@ -135,7 +98,7 @@ parse_text(FILE *file, struct page_ctx *page_ctx,
 }
 
 int
-print_pages(FILE *pages_file, FILE *font_file, FILE *pdf_file)
+print_pages(FILE *pages_file, FILE *typeface_file, FILE *pdf_file)
 {
   int ret, scan, i;
   char cmd_str[5];
@@ -144,6 +107,7 @@ print_pages(FILE *pages_file, FILE *font_file, FILE *pdf_file)
   const struct page_command *page_cmd;
   struct pdf_xref_table xref_table;
   struct pdf_page_list page_list;
+  struct pdf_resources resources;
   int obj_resources, obj_page_list, obj_catalog;
   ret = 0;
   page_ctx.x = 0;
@@ -152,10 +116,13 @@ print_pages(FILE *pages_file, FILE *font_file, FILE *pdf_file)
   dbuffer_printf(&text_content, "0 0 0 rg\nBT\n");
   init_pdf_xref_table(&xref_table);
   init_pdf_page_list(&page_list);
+  init_pdf_resources(&resources);
+  include_font_resource(&resources, "Regular");
+  include_font_resource(&resources, "Bold");
 
   allocate_pdf_obj(&xref_table); /* Allocate the 'zero' object. */
   pdf_write_header(pdf_file);
-  obj_resources = create_resources(pdf_file, &xref_table, font_file);
+  obj_resources = allocate_pdf_obj(&xref_table);
   obj_page_list = allocate_pdf_obj(&xref_table);
 
 next_command:
@@ -187,8 +154,12 @@ next_command:
     fprintf(stderr, "Failed to parse page command '%s'\n", cmd_str);
 finish_parse:
 
+  pdf_add_resources(pdf_file, typeface_file, obj_resources, &resources,
+      &xref_table);
+
   pdf_start_indirect_obj(pdf_file, &xref_table, obj_page_list);
-  pdf_write_page_list(pdf_file, &page_list, obj_resources);
+  pdf_write_pages(pdf_file, obj_resources, page_list.page_count,
+      page_list.page_objs);
   pdf_end_indirect_obj(pdf_file);
 
   obj_catalog = allocate_pdf_obj(&xref_table);
@@ -196,7 +167,7 @@ finish_parse:
   pdf_write_catalog(pdf_file, obj_page_list);
   pdf_end_indirect_obj(pdf_file);
 
-  pdf_write_footer(pdf_file, &xref_table, obj_catalog);
+  pdf_add_footer(pdf_file, &xref_table, obj_catalog);
   dbuffer_free(&text_content);
   return ret;
 }

@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "tw.h"
 
@@ -84,6 +85,16 @@ parse_error:
   record->field_count = 0;
   record->string.size = 0;
   return 1;
+}
+
+int
+find_field(const struct record *record, const char *field_str)
+{
+  int i;
+  for (i = 0; i < record->field_count; i++)
+    if (strcmp(record->fields[i], field_str) == 0)
+      return i;
+  return -1;
 }
 
 void
