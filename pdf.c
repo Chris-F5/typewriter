@@ -133,7 +133,7 @@ pdf_write_catalog(FILE *file, int page_list)
 void
 init_pdf_xref_table(struct pdf_xref_table *xref)
 {
-  xref->obj_count = 0;
+  xref->obj_count = 1;
   xref->allocated = 100;
   xref->obj_offsets = xmalloc(xref->allocated * sizeof(long));
   memset(xref->obj_offsets, 0, xref->allocated * sizeof(long));

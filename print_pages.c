@@ -3,45 +3,24 @@
 
 #include "tw.h"
 
-struct page_ctx {
-  int x, y;
-};
-
-typedef int (*PageCommandParser)(FILE *file, struct page_ctx *page_ctx,
-    struct dbuffer *text_content);
-
-struct page_command {
-  const char *str;
-  PageCommandParser parser;
+struct text_content {
+  int x, y, font_size;
+  struct dbuffer buffer;
+  char font_name[256];
 };
 
 static void add_page(FILE *pdf_file, int obj_parent,
     struct pdf_xref_table *xref, struct pdf_page_list *page_list,
     const struct dbuffer *text_content);
-static int parse_goto(FILE *file, struct page_ctx *page_ctx,
-    struct dbuffer *text_content);
-static int parse_move(FILE *file, struct page_ctx *page_ctx, struct dbuffer
-    *text_content);
-static int parse_text(FILE *file, struct page_ctx *page_ctx,
-    struct dbuffer *text_content);
+static int is_font_name_valid(const char *font_name);
+static void write_pdf_escaped_string(struct dbuffer *buffer,
+    const char *string);
+static int parse_text(FILE *input, int x, int y,
+    struct text_content *text_content, struct pdf_resources *resources);
+static int parse_graphic(FILE *input, int origin_x, int origin_y,
+    struct text_content *text_content, struct pdf_resources *resources);
 
-static const char *new_page_str = "PAGE";
-
-static const struct page_command *page_commands[] = {
-  &(struct page_command) {
-    "GOTO",
-    parse_goto,
-  },
-  &(struct page_command) {
-    "MOVE",
-    parse_move,
-  },
-  &(struct page_command) {
-    "TEXT",
-    parse_text,
-  },
-  NULL,
-};
+static struct record record;
 
 static void
 add_page(FILE *pdf_file, int obj_parent, struct pdf_xref_table *xref,
@@ -63,96 +42,219 @@ add_page(FILE *pdf_file, int obj_parent, struct pdf_xref_table *xref,
 }
 
 static int
-parse_goto(FILE *file, struct page_ctx *page_ctx, struct dbuffer *text_content)
+is_font_name_valid(const char *font_name)
 {
-  fscanf(file, "%d %d\n", &page_ctx->x, &page_ctx->y);
-  dbuffer_printf(text_content, "1 0 0 1 %d %d Tm\n", page_ctx->x, page_ctx->y);
-  return 0;
+  unsigned char c;
+  if (*font_name == '\0')
+    return 1;
+  while (*font_name) {
+    c = *font_name;
+    if (c == 45 || (c >= 48 && c <= 57) || c == 95 || (c >= 65 && c <= 90)
+        || (c >= 97 && c <= 122)) {
+      font_name++;
+    } else {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+static void
+write_pdf_escaped_string(struct dbuffer *buffer, const char *string)
+{
+  dbuffer_putc(buffer, '(');
+  while (*string) {
+    switch (*string) {
+      case '(':
+      case ')':
+      case '\\':
+        dbuffer_putc(buffer, '\\');
+      default:
+        dbuffer_putc(buffer, *string);
+    }
+    string++;
+  }
+  dbuffer_putc(buffer, ')');
 }
 
 static int
-parse_move(FILE *file, struct page_ctx *page_ctx, struct dbuffer *text_content)
+parse_text(FILE *input, int x, int y, struct text_content *text_content,
+    struct pdf_resources *resources)
 {
-  int xo, yo;
-  fscanf(file, "%d %d\n", &xo, &yo);
-  page_ctx->x += xo;
-  page_ctx->y += yo;
-  dbuffer_printf(text_content, "1 0 0 1 %d %d Tm\n", page_ctx->x, page_ctx->y);
-  return 0;
-}
-
-static int
-parse_text(FILE *file, struct page_ctx *page_ctx,
-    struct dbuffer *text_content)
-{
-  int c;
-  while ( (c = fgetc(file)) != '\n') {
-    if (c == EOF) {
-      fprintf(stderr, "Unexpected EOF in text command\n");
+  int parse_result, arg1, font_size;
+  char font_name[256];
+  font_size = 0;
+  font_name[0] = '\0';
+  dbuffer_printf(&text_content->buffer, "1 0 0 1 %d %d Tm", x, y);
+  for (;;) {
+    parse_result = parse_record(input, &record);
+    if (parse_result == EOF) {
+      fprintf(stderr, "Text not ended before end of file.\n");
       return 1;
     }
-    dbuffer_putc(text_content, (char)c);
+    if (parse_result)
+      continue;
+    if (strcmp(record.fields[0], "END") == 0)
+      break;
+    if (strcmp(record.fields[0], "FONT") == 0) {
+      if (record.field_count != 3) {
+        fprintf(stderr, "Text FONT command must take 2 arguments.\n");
+        continue;
+      }
+      if (strlen(record.fields[1]) >= 256) {
+        fprintf(stderr, "Font name too long: '%s'\n", record.fields[1]);
+        continue;
+      }
+      if (!is_font_name_valid(record.fields[1])) {
+        fprintf(stderr, "Font name contains illegal characters: '%s'\n",
+            record.fields[1]);
+        continue;
+      }
+      if (str_to_int(record.fields[2], &arg1)) {
+        fprintf(stderr, "Text FONT command's 2nd argument must be integer.\n");
+        continue;
+      }
+      strcpy(font_name, record.fields[1]);
+      font_size = arg1;
+      include_font_resource(resources, font_name);
+      continue;
+    }
+    if (strcmp(record.fields[0], "STRING") == 0) {
+      if (record.field_count != 2) {
+        fprintf(stderr, "Text STRING command must take 1 argument.\n");
+        continue;
+      }
+      if (*font_name == '\0') {
+        fprintf(stderr, "Text must specify font.\n");
+        continue;
+      }
+      if (strcmp(text_content->font_name, font_name)
+          || text_content->font_size != font_size) {
+        dbuffer_printf(&text_content->buffer, " /%s %d Tf", font_name,
+            font_size);
+        strcpy(text_content->font_name, font_name);
+        text_content->font_size = font_size;
+      }
+      dbuffer_putc(&text_content->buffer, ' ');
+      write_pdf_escaped_string(&text_content->buffer, record.fields[1]);
+      dbuffer_printf(&text_content->buffer, " Tj");
+      continue;
+    }
+    fprintf(stderr, "Invalid text command: '%s'\n", record.fields[0]);
   }
-  dbuffer_putc(text_content, '\n');
+  dbuffer_putc(&text_content->buffer, '\n');
+  return 0;
+}
+
+static int
+parse_graphic(FILE *input, int origin_x, int origin_y,
+    struct text_content *text_content, struct pdf_resources *resources)
+{
+  int parse_result;
+  int x, y, arg1, arg2;
+  x = origin_x;
+  y = origin_y;
+  for (;;) {
+    parse_result = parse_record(input, &record);
+    if (parse_result == EOF) {
+      fprintf(stderr, "Graphic not ended before end of file.\n");
+      return 1;
+    }
+    if (parse_result)
+      continue;
+    if (strcmp(record.fields[0], "END") == 0)
+      break;
+    if (strcmp(record.fields[0], "MOVE") == 0) {
+      if (record.field_count != 3) {
+        fprintf(stderr, "Graphic MOVE command must take 2 arguments.\n");
+        continue;
+      }
+      if (str_to_int(record.fields[1], &arg1)
+          || str_to_int(record.fields[2], &arg2)) {
+        fprintf(stderr, "Graphic MOVE command takes only integer arguments.\n");
+        continue;
+      }
+      x = origin_x + arg1;
+      y = origin_y + arg2;
+      continue;
+    }
+    if (strcmp(record.fields[0], "START") == 0) {
+      if (record.field_count != 2) {
+        fprintf(stderr, "START command must take one argument.\n");
+        return 1;
+      }
+      if (strcmp(record.fields[1], "GRAPHIC") == 0) {
+        if (parse_graphic(input, x, y, text_content, resources))
+          return 1;
+        continue;
+      }
+      if (strcmp(record.fields[1], "TEXT") == 0) {
+        if (parse_text(input, x, y, text_content, resources))
+          return 1;
+        continue;
+      }
+      fprintf(stderr, "Invalid graphic START command argument: '%s'\n",
+          record.fields[1]);
+      return 1;
+    }
+    fprintf(stderr, "Invalid graphic command: '%s'\n", record.fields[0]);
+  }
   return 0;
 }
 
 int
 print_pages(FILE *pages_file, FILE *typeface_file, FILE *pdf_file)
 {
-  int ret, scan, i;
-  char cmd_str[5];
-  struct page_ctx page_ctx;
-  struct dbuffer text_content;
-  const struct page_command *page_cmd;
+  int ret, parse_result;
+  int obj_resources, obj_page_list, obj_catalog;
   struct pdf_xref_table xref_table;
   struct pdf_page_list page_list;
   struct pdf_resources resources;
-  int obj_resources, obj_page_list, obj_catalog;
+  struct text_content text_content;
   ret = 0;
-  page_ctx.x = 0;
-  page_ctx.y = 0;
-  dbuffer_init(&text_content, 1024 * 4, 1024 * 4);
-  dbuffer_printf(&text_content, "0 0 0 rg\nBT\n");
   init_pdf_xref_table(&xref_table);
   init_pdf_page_list(&page_list);
   init_pdf_resources(&resources);
-  include_font_resource(&resources, "Regular");
-  include_font_resource(&resources, "Bold");
-
-  allocate_pdf_obj(&xref_table); /* Allocate the 'zero' object. */
-  pdf_write_header(pdf_file);
   obj_resources = allocate_pdf_obj(&xref_table);
   obj_page_list = allocate_pdf_obj(&xref_table);
+  obj_catalog = allocate_pdf_obj(&xref_table);
+  pdf_write_header(pdf_file);
 
-next_command:
-    scan = fscanf(pages_file, "%4s", cmd_str);
-    fscanf(pages_file, " ");
-    if (scan == EOF)
-      goto finish_parse;
-    if (scan < 1)
-      cmd_str[0] = '\0';
-    if (strcmp(cmd_str, new_page_str) == 0) {
-      fscanf(pages_file, "\n");
-      dbuffer_printf(&text_content, "ET");
-      add_page(pdf_file, obj_page_list, &xref_table, &page_list,
-          &text_content);
-      text_content.size = 0;
-      dbuffer_printf(&text_content, "0 0 0 rg\nBT\n");
-      goto next_command;
-    }
-    i = 0;
-    while ( (page_cmd = page_commands[i++]) )
-      if (strcmp(cmd_str, page_cmd->str) == 0) {
-        ret = page_cmd->parser(pages_file, &page_ctx, &text_content);
-        if (ret)
-          goto finish_parse;
-        else
-          goto next_command;
+  text_content.x = 0;
+  text_content.y = 0;
+  text_content.font_size = 0;
+  text_content.font_name[0] = '\0';
+  dbuffer_init(&text_content.buffer, 1024 * 32, 1024 * 32);
+  init_record(&record);
+  for (;;) {
+    parse_result = parse_record(pages_file, &record);
+    if (parse_result == EOF)
+      break;
+    if (parse_result)
+      continue;
+    if (strcmp(record.fields[0], "START") == 0) {
+      if (record.field_count != 2) {
+        fprintf(stderr, "Pages START command must take 1 argument.\n");
+        ret = 1;
+        break;
       }
-    ret = 1;
-    fprintf(stderr, "Failed to parse page command '%s'\n", cmd_str);
-finish_parse:
+      if (strcmp(record.fields[1], "PAGE") == 0) {
+        if (parse_graphic(pages_file, 0, 0, &text_content, &resources)) {
+          ret = 1;
+          break;
+        }
+        add_page(pdf_file, obj_page_list, &xref_table, &page_list,
+            &text_content.buffer);
+        continue;
+      }
+      fprintf(stderr, "Invalid document START command argument: '%s'\n",
+          record.fields[1]);
+      ret = 1;
+      break;
+    }
+  }
+  dbuffer_free(&text_content.buffer);
+  free_record(&record);
 
   pdf_add_resources(pdf_file, typeface_file, obj_resources, &resources,
       &xref_table);
@@ -162,12 +264,13 @@ finish_parse:
       page_list.page_objs);
   pdf_end_indirect_obj(pdf_file);
 
-  obj_catalog = allocate_pdf_obj(&xref_table);
   pdf_start_indirect_obj(pdf_file, &xref_table, obj_catalog);
   pdf_write_catalog(pdf_file, obj_page_list);
   pdf_end_indirect_obj(pdf_file);
 
   pdf_add_footer(pdf_file, &xref_table, obj_catalog);
-  dbuffer_free(&text_content);
+  free_pdf_page_list(&page_list);
+  free_pdf_resources(&resources);
+  free_pdf_xref_table(&xref_table);
   return ret;
 }

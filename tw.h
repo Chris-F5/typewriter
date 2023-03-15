@@ -59,6 +59,7 @@ void dbuffer_printf(struct dbuffer *buf, const char *format, ...);
 void dbuffer_free(struct dbuffer *buf);
 
 /* record.c */
+int str_to_int(const char *str, int *n);
 void init_record(struct record *record);
 void begin_field(struct record *record);
 int parse_record(FILE *file, struct record *record);
