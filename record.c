@@ -1,18 +1,13 @@
+/*
+ * Copyright (C) 2023 Christopher Lang
+ * See LICENSE for license details.
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "tw.h"
-
-int
-str_to_int(const char *str, int *n)
-{
-  char *endptr;
-  *n = strtol(str, &endptr, 10);
-  if (*str == '\0' || *endptr != '\0')
-    return 1;
-  return 0;
-}
 
 void
 init_record(struct record *record)

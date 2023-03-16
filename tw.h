@@ -49,9 +49,11 @@ struct pdf_xref_table {
   long *obj_offsets;
 };
 
-/* error.c */
+/* utils.c */
 void *xmalloc(size_t len);
 void *xrealloc(void *p, size_t len);
+int is_font_name_valid(const char *font_name);
+int str_to_int(const char *str, int *n);
 
 /* dbuffer.c */
 void dbuffer_init(struct dbuffer *buf, int initial, int increment);
@@ -60,7 +62,6 @@ void dbuffer_printf(struct dbuffer *buf, const char *format, ...);
 void dbuffer_free(struct dbuffer *buf);
 
 /* record.c */
-int str_to_int(const char *str, int *n);
 void init_record(struct record *record);
 void begin_field(struct record *record);
 int parse_record(FILE *file, struct record *record);

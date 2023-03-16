@@ -17,7 +17,6 @@ struct text_content {
 static void add_page(FILE *pdf_file, int obj_parent,
     struct pdf_xref_table *xref, struct pdf_page_list *page_list,
     const struct dbuffer *text_content);
-static int is_font_name_valid(const char *font_name);
 static void write_pdf_escaped_string(struct dbuffer *buffer,
     const char *string);
 static int parse_text(FILE *input, int x, int y,
@@ -44,24 +43,6 @@ add_page(FILE *pdf_file, int obj_parent, struct pdf_xref_table *xref,
   pdf_end_indirect_obj(pdf_file);
 
   add_pdf_page(page_list, obj_page);
-}
-
-static int
-is_font_name_valid(const char *font_name)
-{
-  unsigned char c;
-  if (*font_name == '\0')
-    return 1;
-  while (*font_name) {
-    c = *font_name;
-    if (c == 45 || (c >= 48 && c <= 57) || c == 95 || (c >= 65 && c <= 90)
-        || (c >= 97 && c <= 122)) {
-      font_name++;
-    } else {
-      return 0;
-    }
-  }
-  return 1;
 }
 
 static void
