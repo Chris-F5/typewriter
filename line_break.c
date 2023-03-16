@@ -10,10 +10,14 @@
 #include "tw.h"
 
 enum gizmo_type {
-  GIZMO_STRING,
-  GIZMO_FONT,
+  GIZMO_TEXT,
   GIZMO_OPTBREAK,
   GIZMO_BREAK,
+};
+
+struct style {
+  int font_size;
+  char font_name[256];
 };
 
 struct gizmo {
@@ -22,22 +26,17 @@ struct gizmo {
   char _[];
 };
 
-struct string_gizmo {
-  int type; /* GIZMO_STRING */
+struct text_gizmo {
+  int type; /* GIZMO_TEXT */
   struct gizmo *next;
+  struct style style;
   char string[];
-};
-
-struct font_gizmo {
-  int type; /* GIZMO_FONT */
-  struct gizmo *next;
-  int font_size;
-  char font_name[];
 };
 
 struct optbreak_gizmo {
   int type; /* GIZMO_OPTBREAK */
   struct gizmo *next;
+  struct style style;
   char *no_break, *at_break;
   char strings[];
 };
@@ -50,10 +49,13 @@ parse_gizmos(FILE *file)
 {
   struct gizmo *first_gizmo;
   struct gizmo **next_gizmo;
+  struct style current_style;
   int parse_result;
   struct record record;
   first_gizmo = NULL;
   next_gizmo = &first_gizmo;
+  current_style.font_name[0] = '\0';
+  current_style.font_size = 0;
   init_record(&record);
   for (;;) {
     parse_result = parse_record(file, &record);
@@ -66,11 +68,17 @@ parse_gizmos(FILE *file)
         fprintf(stderr, "Text STRING command must have 1 option.\n");
         continue;
       }
-      *next_gizmo = malloc(sizeof(struct string_gizmo)
+      if (current_style.font_name[0] == '\0') {
+        fprintf(stderr,
+            "Text STRING command can't be called without FONT set.\n");
+        continue;
+      }
+      *next_gizmo = malloc(sizeof(struct text_gizmo)
           + strlen(record.fields[1]) + 1);
-      (*next_gizmo)->type = GIZMO_STRING;
+      (*next_gizmo)->type = GIZMO_TEXT;
       (*next_gizmo)->next = NULL;
-      strcpy(((struct string_gizmo *)*next_gizmo)->string, record.fields[1]);
+      ((struct text_gizmo *)*next_gizmo)->style = current_style;
+      strcpy(((struct text_gizmo *)*next_gizmo)->string, record.fields[1]);
       next_gizmo = &(*next_gizmo)->next;
       continue;
     }
@@ -79,17 +87,20 @@ parse_gizmos(FILE *file)
         fprintf(stderr, "Text FONT command must have 2 options.\n");
         continue;
       }
-      *next_gizmo = malloc(sizeof(struct font_gizmo) + strlen(record.fields[1])
-          + 1);
-      (*next_gizmo)->type = GIZMO_FONT;
-      (*next_gizmo)->next = NULL;
-      strcpy(((struct font_gizmo *)*next_gizmo)->font_name, record.fields[1]);
-      if (str_to_int(record.fields[2],
-            &((struct font_gizmo *)*next_gizmo)->font_size)) {
-        fprintf(stderr, "Text FONT command's 2nd option must be integer.\n");
-        ((struct font_gizmo *)*next_gizmo)->font_size = 12;
+      if (strlen(record.fields[1]) >= 256) {
+        fprintf(stderr, "Text font name too long: '%s'\n", record.fields[1]);
+        continue;
       }
-      next_gizmo = &(*next_gizmo)->next;
+      if (!is_font_name_valid(record.fields[1])) {
+        fprintf(stderr, "Text font name contains illegal characters: '%s'\n",
+            record.fields[1]);
+        continue;
+      }
+      strcpy(current_style.font_name, record.fields[1]);
+      if (str_to_int(record.fields[2], &current_style.font_size)) {
+        fprintf(stderr, "Text FONT command's 2nd option must be integer.\n");
+        current_style.font_size = 12;
+      }
       continue;
     }
     if (strcmp(record.fields[0], "OPTBREAK") == 0) {
@@ -102,6 +113,7 @@ parse_gizmos(FILE *file)
           + strlen(record.fields[2]) + 2);
       (*next_gizmo)->type = GIZMO_OPTBREAK;
       (*next_gizmo)->next = NULL;
+      ((struct optbreak_gizmo *)*next_gizmo)->style = current_style;
       ((struct optbreak_gizmo *)*next_gizmo)->no_break
         = ((struct optbreak_gizmo *)*next_gizmo)->strings;
       ((struct optbreak_gizmo *)*next_gizmo)->at_break
