@@ -1,3 +1,8 @@
+/*
+ * Copyright (C) 2023 Christopher Lang
+ * See LICENSE for license details.
+ */
+
 #include <stdlib.h>
 #include <stdio.h>
 

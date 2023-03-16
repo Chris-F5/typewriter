@@ -1,5 +1,6 @@
 /*
- * include stdio.h
+ * Copyright (C) 2023 Christopher Lang
+ * See LICENSE for license details.
  */
 
 struct dbuffer {

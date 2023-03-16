@@ -1,4 +1,9 @@
 /*
+ * Copyright (C) 2023 Christopher Lang
+ * See LICENSE for license details.
+ */
+
+/*
  * See Apple's TrueType reference manual for file format info:
  * https://developer.apple.com/fonts/TrueType-Reference-Manual/
  */
