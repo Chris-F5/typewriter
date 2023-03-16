@@ -6,7 +6,7 @@ all: tw line_break
 tw: tw.o error.o dbuffer.o record.o ttf.o pdf.o print_pages.o
 	$(CC) $^ -o $@
 
-line_break: line_break.o error.o dbuffer.o ttf.o
+line_break: line_break.o error.o dbuffer.o record.o ttf.o
 	$(CC) $^ -o $@
 
 tw.o: tw.c tw.h
