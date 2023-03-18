@@ -78,9 +78,6 @@ void *stack_pop_pointer(struct stack *stack);
 /* ttf.c */
 int read_ttf(FILE *file, struct font_info *info);
 
-/* typeface.c */
-void open_typeface(FILE *typeface_file);
-
 /* pdf.c */
 void pdf_write_header(FILE *file);
 void pdf_start_indirect_obj(FILE *file, struct pdf_xref_table *xref, int obj);

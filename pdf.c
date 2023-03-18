@@ -209,10 +209,8 @@ pdf_add_font(FILE *pdf_file, FILE *font_file, struct pdf_xref_table *xref,
   font = allocate_pdf_obj(xref);
 
   fseek(font_file, 0, SEEK_SET);
-  if (read_ttf(font_file, &font_info)) {
-    fprintf(stderr, "Failed to parse ttf file.");
+  if (read_ttf(font_file, &font_info))
     return -1;
-  }
   fseek(font_file, 0, SEEK_SET);
   pdf_start_indirect_obj(pdf_file, xref, font_program);
   pdf_write_file_stream(pdf_file, font_file);;
@@ -252,6 +250,17 @@ pdf_add_resources(FILE *pdf_file, FILE *typeface_file, int resources_obj,
       continue;
     if (typeface_record.field_count != 2) {
       fprintf(stderr, "Typeface records must have exactly 2 fields.");
+      continue;
+    }
+    if (strlen(typeface_record.fields[0]) >= 256) {
+      fprintf(stderr,
+          "Typeface file contains font name that is too long '%s'.\n",
+          typeface_record.fields[0]);
+      continue;
+    }
+    if (!is_font_name_valid(typeface_record.fields[0])) {
+      fprintf(stderr, "Typeface file contains invalid font name '%s'.\n",
+          typeface_record.fields[0]);
       continue;
     }
     i = find_field(&resources->fonts_used, typeface_record.fields[0]);

@@ -1,17 +1,20 @@
 #!/bin/awk -f
 
-BEGIN { y = 842 }
-
-!g && $1 == "graphic" {
-  g = 1
+BEGIN {
+  print "START PAGE"
+  y = 842
+  content_depth = 0
+}
+$1 != "#" {
+  print $0
+  next
+}
+$2 == "vertical_content" {
+  content_depth = 1
   y -= $3
-  printf "GOTO 0 %d\n", y
+  printf "MOVE 0 %d\n", y
   next
 }
-g && $1 == "endgraphic" {
-  g = 0
-  next
+END {
+  print "END"
 }
-g { print $0 }
-
-END { print "PAGE" }
