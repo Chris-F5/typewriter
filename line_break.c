@@ -44,7 +44,7 @@ struct text_gizmo {
 struct break_gizmo {
   int type; /* GIZMO_BREAK */
   struct gizmo *next;
-  int does_break, total_penalty;
+  int does_break, total_penalty, spacing;
   struct break_gizmo *best_source;
   struct style style;
   int no_break_width, at_break_width;
@@ -218,6 +218,7 @@ parse_gizmos(FILE *file, const struct typeface *typeface)
           + strlen(record.fields[2]) + 2);
       (*next_gizmo)->type = GIZMO_BREAK;
       (*next_gizmo)->next = NULL;
+      ((struct break_gizmo *)*next_gizmo)->spacing = 0;
       ((struct break_gizmo *)*next_gizmo)->does_break = 0;
       ((struct break_gizmo *)*next_gizmo)->total_penalty = INT_MAX;
       ((struct break_gizmo *)*next_gizmo)->best_source = NULL;
@@ -246,6 +247,7 @@ parse_gizmos(FILE *file, const struct typeface *typeface)
       *next_gizmo = malloc(sizeof(struct break_gizmo) + 1);
       (*next_gizmo)->type = GIZMO_BREAK;
       (*next_gizmo)->next = NULL;
+      ((struct break_gizmo *)*next_gizmo)->spacing = 12;
       ((struct break_gizmo *)*next_gizmo)->does_break = 1;
       ((struct break_gizmo *)*next_gizmo)->total_penalty = INT_MAX;
       ((struct break_gizmo *)*next_gizmo)->best_source = NULL;
@@ -263,6 +265,7 @@ parse_gizmos(FILE *file, const struct typeface *typeface)
   *next_gizmo = malloc(sizeof(struct break_gizmo) + 1);
   (*next_gizmo)->type = GIZMO_BREAK;
   (*next_gizmo)->next = NULL;
+  ((struct break_gizmo *)*next_gizmo)->spacing = 0;
   ((struct break_gizmo *)*next_gizmo)->does_break = 1;
   ((struct break_gizmo *)*next_gizmo)->total_penalty = INT_MAX;
   ((struct break_gizmo *)*next_gizmo)->best_source = NULL;
@@ -400,6 +403,8 @@ print_gizmos(FILE *output, struct gizmo *gizmo, int line_width)
         fprintf(output, "START TEXT\n");
         fprintf(output, "%s", line.data);
         fprintf(output, "END\n");
+        if (break_gizmo->spacing)
+          fprintf(output, "# glue %d\n", break_gizmo->spacing);
         height = 0;
         width = 0;
         style.font_name[0] = '\0';
