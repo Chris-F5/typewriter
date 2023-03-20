@@ -231,6 +231,11 @@ print_pages(FILE *pages_file, FILE *typeface_file, FILE *pdf_file)
         }
         add_page(pdf_file, obj_page_list, &xref_table, &page_list,
             &text_content.buffer);
+        text_content.x = 0;
+        text_content.y = 0;
+        text_content.font_size = 0;
+        text_content.font_name[0] = '\0';
+        text_content.buffer.size = 0;
         continue;
       }
       fprintf(stderr, "Invalid document START command argument: '%s'\n",

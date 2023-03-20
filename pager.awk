@@ -2,7 +2,8 @@
 
 BEGIN {
   print "START PAGE"
-  y = 842
+  page_height = 842
+  y = page_height
 }
 $1 != "#" {
   print $0
@@ -10,6 +11,11 @@ $1 != "#" {
 }
 $2 == "vertical_content" {
   y -= $3
+  if (y < 0) {
+    y = page_height - $3
+    print "END"
+    print "START PAGE"
+  }
   printf "MOVE 0 %d\n", y
   next
 }

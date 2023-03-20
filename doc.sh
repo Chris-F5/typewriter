@@ -1,6 +1,6 @@
 #!/bin/sh
 
-(./paragraph.sh | ./line_break -l 300) << EOF
+(./paragraph.sh | ./line_break -l 100) << EOF
 Lorem     ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor
   incididunt ut labore et dolore magna aliqua. Vel turpis nunc eget lorem dolor  
   sed viverra. Tellus rutrum tellus pellentesque eu tincidunt tortor aliquam.
