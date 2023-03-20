@@ -2,8 +2,12 @@
 
 BEGIN {
   print "START PAGE"
+  top_margin = 40
+  bot_margin = 40
+  left_margin = 60
   page_height = 842
-  y = page_height
+  y = page_height - top_margin
+  x = left_margin
 }
 $1 != "#" {
   print $0
@@ -11,12 +15,12 @@ $1 != "#" {
 }
 $2 == "vertical_content" {
   y -= $3
-  if (y < 0) {
-    y = page_height - $3
+  if (y < bot_margin) {
+    y = page_height - top_margin - $3
     print "END"
     print "START PAGE"
   }
-  printf "MOVE 0 %d\n", y
+  printf "MOVE %d %d\n", x, y
   next
 }
 $2 == "glue" {
