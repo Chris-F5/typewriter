@@ -150,8 +150,7 @@ allocate_pdf_obj(struct pdf_xref_table *xref)
   if (xref->obj_count == xref->allocated) {
     xref->obj_offsets
       = xrealloc(xref->obj_offsets, (xref->allocated + 100) * sizeof(long));
-    memset(xref->obj_offsets + xref->allocated, 0,
-        (xref->allocated + 100) * sizeof(long));
+    memset(xref->obj_offsets + xref->allocated, 0, 100 * sizeof(long));
     xref->allocated += 100;
   }
   return xref->obj_count++;
@@ -294,6 +293,7 @@ pdf_add_resources(FILE *pdf_file, FILE *typeface_file, int resources_obj,
   }
   fprintf(pdf_file, "  >>\n>>\n");
   pdf_end_indirect_obj(pdf_file);
+  free(font_objs);
 }
 
 void
