@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <limits.h>
+#include <unistd.h>
 
 #include "tw.h"
 
@@ -423,20 +424,41 @@ print_gizmos(FILE *output, struct gizmo *gizmo, int line_width)
   dbuffer_free(&line);
 }
 
+static void
+die_usage(char *program_name)
+{
+  fprintf(stderr, "Usage: %s -l NUM\n", program_name);
+  exit(1);
+}
+
 int
 main(int argc, char **argv)
 {
+  int opt, line_width;
   FILE *input_file, *typeface_file, *output_file;
   struct typeface *typeface;
   struct gizmo *gizmos;
+  line_width = 0;
+  while ( (opt = getopt(argc, argv, "l:")) != -1) {
+    switch (opt) {
+    case 'l':
+      if (str_to_int(optarg, &line_width))
+        die_usage(argv[0]);
+      break;
+    default:
+      die_usage(argv[0]);
+    }
+  }
+  if (line_width == 0)
+    die_usage(argv[0]);
   input_file = stdin;
   typeface_file = fopen("typeface", "r");
   output_file = stdout;
   typeface = open_typeface(typeface_file);
   fclose(typeface_file);
   gizmos = parse_gizmos(input_file, typeface);
-  optimise_breaks(gizmos, 595);
-  print_gizmos(output_file, gizmos, 595);
+  optimise_breaks(gizmos, line_width);
+  print_gizmos(output_file, gizmos, line_width);
   free_typeface(typeface);
   free_gizmos(gizmos);
   fclose(input_file);

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-(./paragraph.sh | ./line_break) << EOF
+(./paragraph.sh | ./line_break -l 300) << EOF
 Lorem     ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor
   incididunt ut labore et dolore magna aliqua. Vel turpis nunc eget lorem dolor  
   sed viverra. Tellus rutrum tellus pellentesque eu tincidunt tortor aliquam.
@@ -35,7 +35,7 @@ Lorem     ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod temp
   in eu mi bibendum neque egestas congue quisque.
 EOF
 
-./line_break << EOF
+./line_break -l 100 << EOF
 FONT Regular 12
 STRING "regular text"
 FONT Bold 20
