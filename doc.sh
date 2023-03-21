@@ -1,6 +1,8 @@
 #!/bin/sh
 
-(./paragraph.sh | ./line_break -l 475) << EOF
+(sh | ./tw) << END_DOCUMENT
+(sh | ./pager.awk) << END_CONTENT
+(./paragraph.sh | ./line_break -l 475) << END_PARAGRAPH
 Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Neque sodales ut etiam sit amet nisl purus in. Mattis vulputate enim nulla aliquet porttitor lacus luctus. Cras adipiscing enim eu turpis egestas. Nullam ac tortor vitae purus faucibus ornare suspendisse sed nisi. Dis parturient montes nascetur ridiculus mus mauris vitae. Nisl suscipit adipiscing bibendum est ultricies integer quis auctor. Morbi tincidunt augue interdum velit. Nullam non nisi est sit amet facilisis magna. Gravida quis blandit turpis cursus in hac habitasse platea.
 
 Vitae justo eget magna fermentum iaculis eu. In tellus integer feugiat scelerisque varius morbi. Non odio euismod lacinia at quis risus sed vulputate. Blandit cursus risus at ultrices mi tempus imperdiet nulla malesuada. Habitant morbi tristique senectus et netus. Imperdiet proin fermentum leo vel. Non consectetur a erat nam at lectus. Pellentesque sit amet porttitor eget dolor morbi. Integer malesuada nunc vel risus commodo viverra. Amet volutpat consequat mauris nunc congue nisi. A cras semper auctor neque vitae tempus quam pellentesque. Ac auctor augue mauris augue neque gravida in fermentum. Sit amet tellus cras adipiscing enim eu turpis.
@@ -100,4 +102,15 @@ Bibendum at varius vel pharetra vel. At ultrices mi tempus imperdiet nulla males
 Sed ullamcorper morbi tincidunt ornare. Magna fringilla urna porttitor rhoncus dolor purus non enim. Malesuada fames ac turpis egestas sed tempus. Ultricies mi eget mauris pharetra et ultrices neque ornare aenean. Rutrum quisque non tellus orci. Proin libero nunc consequat interdum varius sit amet mattis. Sed viverra ipsum nunc aliquet bibendum enim facilisis gravida neque. Egestas congue quisque egestas diam. Turpis massa sed elementum tempus egestas sed sed. Imperdiet dui accumsan sit amet nulla. Commodo odio aenean sed adipiscing. Semper auctor neque vitae tempus quam. Aliquam ultrices sagittis orci a scelerisque. Tellus in hac habitasse platea dictumst vestibulum. Odio aenean sed adipiscing diam donec adipiscing. Risus sed vulputate odio ut enim. In dictum non consectetur a erat. Elementum eu facilisis sed odio. In egestas erat imperdiet sed euismod nisi porta lorem. Venenatis lectus magna fringilla urna.
 
 Purus sit amet luctus venenatis lectus magna fringilla urna porttitor. Id cursus metus aliquam eleifend mi in nulla posuere sollicitudin. Pretium viverra suspendisse potenti nullam ac tortor. Pretium quam vulputate dignissim suspendisse in est ante. Morbi non arcu risus quis varius quam quisque id. Arcu ac tortor dignissim convallis aenean et tortor. Sit amet commodo nulla facilisi nullam vehicula ipsum. Vel fringilla est ullamcorper eget nulla facilisi etiam dignissim diam. Quis blandit turpis cursus in hac habitasse platea dictumst quisque. Nulla pellentesque dignissim enim sit. Etiam erat velit scelerisque in dictum non. Sit amet nisl purus in mollis nunc sed. Sollicitudin nibh sit amet commodo. Egestas sed tempus urna et pharetra pharetra massa massa.
-EOF
+END_PARAGRAPH
+END_CONTENT
+cat << END_PAGE
+START PAGE
+MOVE 100 420
+START TEXT
+FONT Regular 12
+STRING "END OF DOCUMENT"
+END
+END
+END_PAGE
+END_DOCUMENT
