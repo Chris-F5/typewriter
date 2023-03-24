@@ -2,7 +2,10 @@
 
 (sh | ./tw) << END_DOCUMENT
 (sh | ./pager.awk) << END_CONTENT
-(./paragraph.sh | ./line_break -l 475) << END_PARAGRAPH
+(sh | ./paragraph.py | ./line_break -l 475) << END_PARAGRAPH
+date
+END_PARAGRAPH
+(./paragraph.py | ./line_break -l 475) << END_PARAGRAPH
 Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Neque sodales ut etiam sit amet nisl purus in. Mattis vulputate enim nulla aliquet porttitor lacus luctus. Cras adipiscing enim eu turpis egestas. Nullam ac tortor vitae purus faucibus ornare suspendisse sed nisi. Dis parturient montes nascetur ridiculus mus mauris vitae. Nisl suscipit adipiscing bibendum est ultricies integer quis auctor. Morbi tincidunt augue interdum velit. Nullam non nisi est sit amet facilisis magna. Gravida quis blandit turpis cursus in hac habitasse platea.
 
 Vitae justo eget magna fermentum iaculis eu. In tellus integer feugiat scelerisque varius morbi. Non odio euismod lacinia at quis risus sed vulputate. Blandit cursus risus at ultrices mi tempus imperdiet nulla malesuada. Habitant morbi tristique senectus et netus. Imperdiet proin fermentum leo vel. Non consectetur a erat nam at lectus. Pellentesque sit amet porttitor eget dolor morbi. Integer malesuada nunc vel risus commodo viverra. Amet volutpat consequat mauris nunc congue nisi. A cras semper auctor neque vitae tempus quam pellentesque. Ac auctor augue mauris augue neque gravida in fermentum. Sit amet tellus cras adipiscing enim eu turpis.
