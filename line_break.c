@@ -400,12 +400,13 @@ print_gizmos(FILE *output, struct gizmo *gizmo, int line_width)
         width += break_gizmo->at_break_width;
         print_text(&line, &style, &break_gizmo->style, break_gizmo->at_break);
         dbuffer_putc(&line, '\0');
-        fprintf(output, "# vertical_content %d\n", height);
+        fprintf(output, "box %d\n", height);
         fprintf(output, "START TEXT\n");
         fprintf(output, "%s", line.data);
         fprintf(output, "END\n");
         if (break_gizmo->spacing)
-          fprintf(output, "# glue %d\n", break_gizmo->spacing);
+          fprintf(output, "glue %d\n", break_gizmo->spacing);
+        fprintf(output, "opt_break\n");
         height = 0;
         width = 0;
         style.font_name[0] = '\0';

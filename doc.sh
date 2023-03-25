@@ -1,7 +1,7 @@
 #!/bin/sh
 
 (sh | ./tw) << END_DOCUMENT
-(sh | ./pager.awk) << END_CONTENT
+(sh | ./pager.py) << END_CONTENT
 (sh | ./paragraph.py | ./line_break -l 475) << END_PARAGRAPH
 date
 END_PARAGRAPH
@@ -106,6 +106,11 @@ Sed ullamcorper morbi tincidunt ornare. Magna fringilla urna porttitor rhoncus d
 
 Purus sit amet luctus venenatis lectus magna fringilla urna porttitor. Id cursus metus aliquam eleifend mi in nulla posuere sollicitudin. Pretium viverra suspendisse potenti nullam ac tortor. Pretium quam vulputate dignissim suspendisse in est ante. Morbi non arcu risus quis varius quam quisque id. Arcu ac tortor dignissim convallis aenean et tortor. Sit amet commodo nulla facilisi nullam vehicula ipsum. Vel fringilla est ullamcorper eget nulla facilisi etiam dignissim diam. Quis blandit turpis cursus in hac habitasse platea dictumst quisque. Nulla pellentesque dignissim enim sit. Etiam erat velit scelerisque in dictum non. Sit amet nisl purus in mollis nunc sed. Sollicitudin nibh sit amet commodo. Egestas sed tempus urna et pharetra pharetra massa massa.
 END_PARAGRAPH
+echo "flow footnote"
+(./paragraph.py | ./line_break -l 475) << END_FOOTNOTE
+this is a footnote
+END_FOOTNOTE
+echo "flow normal"
 END_CONTENT
 cat << END_PAGE
 START PAGE
