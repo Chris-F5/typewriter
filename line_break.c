@@ -15,6 +15,7 @@
 enum gizmo_type {
   GIZMO_TEXT,
   GIZMO_BREAK,
+  GIZMO_MARK,
 };
 
 struct typeface {
@@ -51,6 +52,12 @@ struct break_gizmo {
   int no_break_width, at_break_width;
   char *no_break, *at_break;
   char strings[];
+};
+
+struct mark_gizmo {
+  int type; /* GIZMO_MARK */
+  struct gizmo *next;
+  char string[];
 };
 
 static struct typeface *open_typeface(FILE *typeface_file);
@@ -262,6 +269,19 @@ parse_gizmos(FILE *file, const struct typeface *typeface)
       next_gizmo = &(*next_gizmo)->next;
       continue;
     }
+    if (strcmp(record.fields[0], "MARK") == 0) {
+      if (record.field_count != 2) {
+        fprintf(stderr, "Text MARK command must have 1 option.\n");
+        continue;
+      }
+      *next_gizmo = malloc(sizeof(struct mark_gizmo)
+          + strlen(record.fields[1]) + 1);
+      (*next_gizmo)->type = GIZMO_MARK;
+      (*next_gizmo)->next = NULL;
+      strcpy(((struct mark_gizmo *)*next_gizmo)->string, record.fields[1]);
+      next_gizmo = &(*next_gizmo)->next;
+      continue;
+    }
   }
   *next_gizmo = malloc(sizeof(struct break_gizmo) + 1);
   (*next_gizmo)->type = GIZMO_BREAK;
@@ -323,8 +343,6 @@ consider_breaks(struct gizmo *gizmo, int source_penalty,
       if (break_gizmo->does_break)
         goto stop;
       break;
-    default:
-      fprintf(stderr, "Invalid gizmo type: '%d'\n", gizmo->type);
     }
   }
 stop:
@@ -375,13 +393,17 @@ print_gizmos(FILE *output, struct gizmo *gizmo, int line_width)
   int width, height;
   struct style style;
   struct dbuffer line;
+  struct dbuffer line_marks;
   struct text_gizmo *text_gizmo;
   struct break_gizmo *break_gizmo;
+  struct mark_gizmo *mark_gizmo;
   width = 0;
   height = 0;
   style.font_name[0] = '\0';
   style.font_size = 0;
   dbuffer_init(&line, 1024 * 4, 1024 * 4);
+  dbuffer_init(&line_marks, 1024, 1024);
+  line_marks.data[0] = '\0';
   for (; gizmo; gizmo = gizmo->next) {
     switch (gizmo->type) {
     case GIZMO_TEXT:
@@ -392,6 +414,10 @@ print_gizmos(FILE *output, struct gizmo *gizmo, int line_width)
       print_text(&line, &style, &text_gizmo->style, text_gizmo->string);
       style = text_gizmo->style;
       break;
+    case GIZMO_MARK:
+      mark_gizmo = (struct mark_gizmo *)gizmo;
+      dbuffer_printf(&line_marks, "^%s\n", mark_gizmo->string);
+      break;
     case GIZMO_BREAK:
       break_gizmo = (struct break_gizmo *)gizmo;
       if (break_gizmo->style.font_size > height)
@@ -399,11 +425,16 @@ print_gizmos(FILE *output, struct gizmo *gizmo, int line_width)
       if (break_gizmo->does_break) {
         width += break_gizmo->at_break_width;
         print_text(&line, &style, &break_gizmo->style, break_gizmo->at_break);
-        dbuffer_putc(&line, '\0');
-        fprintf(output, "box %d\n", height);
-        fprintf(output, "START TEXT\n");
-        fprintf(output, "%s", line.data);
-        fprintf(output, "END\n");
+        if (line.size) {
+          dbuffer_putc(&line, '\0');
+          fprintf(output, "box %d\n", height);
+          fprintf(output, "START TEXT\n");
+          fprintf(output, "%s", line.data);
+          fprintf(output, "END\n");
+        }
+        fprintf(output, line_marks.data);
+        line_marks.size = 0;
+        line_marks.data[0] = '\0';
         if (break_gizmo->spacing)
           fprintf(output, "glue %d\n", break_gizmo->spacing);
         fprintf(output, "opt_break\n");
@@ -412,17 +443,17 @@ print_gizmos(FILE *output, struct gizmo *gizmo, int line_width)
         style.font_name[0] = '\0';
         style.font_size = 0;
         line.size = 0;
+        line.data[0] = '\0';
       } else {
         width += break_gizmo->no_break_width;
         print_text(&line, &style, &break_gizmo->style, break_gizmo->no_break);
         style = break_gizmo->style;
       }
       break;
-    default:
-      fprintf(stderr, "Invalid gizmo type: '%d'\n", gizmo->type);
     }
   }
   dbuffer_free(&line);
+  dbuffer_free(&line_marks);
 }
 
 static void

@@ -201,6 +201,7 @@ while True:
       active_page = page_generator.new_page()
       active_page.add_content(pending_gizmos["normal"],
                               pending_gizmos["footnote"])
+      warn("new page: {}, {}".format(pending_gizmos["normal"][0].graphic.string, pending_gizmos["footnote"]))
     pending_gizmos = {"normal": [], "footnote": []}
   else:
     warn("unrecognised command '{}'".format(fields[0]))
