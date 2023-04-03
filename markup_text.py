@@ -57,9 +57,7 @@ class TextStream:
     for i in range(len(self.insertions)):
       content = content.replace('\n^' + str(i), '\n' + self.insertions[i])
     return content
-
-class SimpleStream(TextStream):
-  def read(self, line):
+  def read_words(self, line):
     words = line.split()
     for word in words:
       self.add_word(word)
@@ -69,12 +67,13 @@ class MainStream(TextStream):
     super().__init__(normal_width, base_size)
     self.footnote_width = footnote_width
     self.set_font("Regular", self.base_size)
+    self.font_mode = 'R'
   def read_footnote(self, footnote_symbol, footnote_text):
-    footnote_stream = SimpleStream(self.footnote_width, self.base_size)
+    footnote_stream = TextStream(self.footnote_width, self.base_size)
     footnote_stream.set_font("Regular", footnote_stream.base_size)
     footnote_stream.add_word(footnote_symbol)
     footnote_stream.set_font("Italic", footnote_stream.base_size)
-    footnote_stream.read(footnote_text)
+    footnote_stream.read_words(footnote_text)
     content = footnote_stream.to_content()
     content = "flow footnote\n" + content + "flow normal\n"
     self.insert_content(content)
@@ -88,8 +87,44 @@ class MainStream(TextStream):
       self.add_word(footnote_symbol)
       self.read_footnote(footnote_symbol, footnote_text)
       return
+    if line[0] == '#':
+      line = line[1:]
+      level = 1
+      while line[0] == '#':
+        line = line[1:]
+        level += 1
+      if level > 4:
+        level = 4
+      size = self.base_size + 24 // level
+      self.end_paragraph()
+      self.set_font("Regular", size)
+      self.read_words(line)
+      self.set_font("Regular", self.base_size)
+      self.end_paragraph()
+      self.font_mode = 'R'
+      return
     words = line.split()
     for word in words:
+      if word[0] == '*' and self.font_mode == 'R':
+        self.set_font("Bold", self.base_size)
+        word = word[1:]
+        self.font_mode = 'B'
+      if word[0] == '_' and self.font_mode == 'R':
+        self.set_font("Italic", self.base_size)
+        word = word[1:]
+        self.font_mode = 'I'
+      if word[-1] == '*' and self.font_mode == 'B':
+        word = word[:-1]
+        self.add_word(word)
+        self.set_font("Regular", self.base_size)
+        self.font_mode = 'R'
+        continue
+      if word[-1] == '_' and self.font_mode == 'I':
+        word = word[:-1]
+        self.add_word(word)
+        self.set_font("Regular", self.base_size)
+        self.font_mode = 'R'
+        continue
       self.add_word(word)
     if len(words) == 0:
       self.end_paragraph()
