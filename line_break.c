@@ -46,7 +46,7 @@ struct text_gizmo {
 struct break_gizmo {
   int type; /* GIZMO_BREAK */
   struct gizmo *next;
-  int does_break, total_penalty, spacing;
+  int does_break, early_break, total_penalty, spacing;
   struct break_gizmo *best_source;
   struct style style;
   int no_break_width, at_break_width;
@@ -70,8 +70,9 @@ static void consider_breaks(struct gizmo *gizmo, int source_penalty,
     struct break_gizmo *source, int line_width);
 static void optimise_breaks(struct gizmo *gizmo, int line_width);
 static void print_text(struct dbuffer *buffer, const struct style *old_style,
-    const struct style *style, const char *string);
-static void print_gizmos(FILE *output, struct gizmo *gizmo, int line_width);
+    const struct style *style, const char *string, int *spaces);
+static void print_gizmos(FILE *output, struct gizmo *gizmo, int line_width,
+    int justified);
 
 static struct typeface *
 open_typeface(FILE *typeface_file)
@@ -228,6 +229,7 @@ parse_gizmos(FILE *file, const struct typeface *typeface)
       (*next_gizmo)->next = NULL;
       ((struct break_gizmo *)*next_gizmo)->spacing = 0;
       ((struct break_gizmo *)*next_gizmo)->does_break = 0;
+      ((struct break_gizmo *)*next_gizmo)->early_break = 0;
       ((struct break_gizmo *)*next_gizmo)->total_penalty = INT_MAX;
       ((struct break_gizmo *)*next_gizmo)->best_source = NULL;
       ((struct break_gizmo *)*next_gizmo)->style = current_style;
@@ -257,6 +259,7 @@ parse_gizmos(FILE *file, const struct typeface *typeface)
       (*next_gizmo)->next = NULL;
       ((struct break_gizmo *)*next_gizmo)->spacing = 12;
       ((struct break_gizmo *)*next_gizmo)->does_break = 1;
+      ((struct break_gizmo *)*next_gizmo)->early_break = 1;
       ((struct break_gizmo *)*next_gizmo)->total_penalty = INT_MAX;
       ((struct break_gizmo *)*next_gizmo)->best_source = NULL;
       ((struct break_gizmo *)*next_gizmo)->style = current_style;
@@ -288,6 +291,7 @@ parse_gizmos(FILE *file, const struct typeface *typeface)
   (*next_gizmo)->next = NULL;
   ((struct break_gizmo *)*next_gizmo)->spacing = 0;
   ((struct break_gizmo *)*next_gizmo)->does_break = 1;
+  ((struct break_gizmo *)*next_gizmo)->early_break = 1;
   ((struct break_gizmo *)*next_gizmo)->total_penalty = INT_MAX;
   ((struct break_gizmo *)*next_gizmo)->best_source = NULL;
   ((struct break_gizmo *)*next_gizmo)->style = current_style;
@@ -366,7 +370,7 @@ optimise_breaks(struct gizmo *gizmo, int line_width)
 
 static void
 print_text(struct dbuffer *buffer, const struct style *old_style,
-    const struct style *style, const char *string)
+    const struct style *style, const char *string, int *spaces)
 {
   if (*string == '\0')
     return;
@@ -381,6 +385,8 @@ print_text(struct dbuffer *buffer, const struct style *old_style,
     }
     if (*string == '"')
       dbuffer_putc(buffer, '\\');
+    if (*string == ' ')
+      (*spaces)++;
     dbuffer_putc(buffer, *string);
     string++;
   }
@@ -388,9 +394,9 @@ print_text(struct dbuffer *buffer, const struct style *old_style,
 }
 
 static void
-print_gizmos(FILE *output, struct gizmo *gizmo, int line_width)
+print_gizmos(FILE *output, struct gizmo *gizmo, int line_width, int justified)
 {
-  int width, height;
+  int width, height, spaces;
   struct style style;
   struct dbuffer line;
   struct dbuffer line_marks;
@@ -399,6 +405,7 @@ print_gizmos(FILE *output, struct gizmo *gizmo, int line_width)
   struct mark_gizmo *mark_gizmo;
   width = 0;
   height = 0;
+  spaces = 0;
   style.font_name[0] = '\0';
   style.font_size = 0;
   dbuffer_init(&line, 1024 * 4, 1024 * 4);
@@ -411,7 +418,8 @@ print_gizmos(FILE *output, struct gizmo *gizmo, int line_width)
       if (text_gizmo->style.font_size > height)
         height = text_gizmo->style.font_size;
       width += text_gizmo->width;
-      print_text(&line, &style, &text_gizmo->style, text_gizmo->string);
+      print_text(&line, &style, &text_gizmo->style, text_gizmo->string,
+          &spaces);
       style = text_gizmo->style;
       break;
     case GIZMO_MARK:
@@ -424,11 +432,15 @@ print_gizmos(FILE *output, struct gizmo *gizmo, int line_width)
         height = break_gizmo->style.font_size;
       if (break_gizmo->does_break) {
         width += break_gizmo->at_break_width;
-        print_text(&line, &style, &break_gizmo->style, break_gizmo->at_break);
+        print_text(&line, &style, &break_gizmo->style, break_gizmo->at_break,
+            &spaces);
         if (line.size) {
           dbuffer_putc(&line, '\0');
           fprintf(output, "box %d\n", height);
           fprintf(output, "START TEXT\n");
+          if (justified && spaces && !break_gizmo->early_break) {
+            fprintf(output, "SPACE %d\n", (line_width * 1000 - width) / spaces);
+          }
           fprintf(output, "%s", line.data);
           fprintf(output, "END\n");
         }
@@ -440,13 +452,15 @@ print_gizmos(FILE *output, struct gizmo *gizmo, int line_width)
         fprintf(output, "opt_break\n");
         height = 0;
         width = 0;
+        spaces = 0;
         style.font_name[0] = '\0';
         style.font_size = 0;
         line.size = 0;
         line.data[0] = '\0';
       } else {
         width += break_gizmo->no_break_width;
-        print_text(&line, &style, &break_gizmo->style, break_gizmo->no_break);
+        print_text(&line, &style, &break_gizmo->style, break_gizmo->no_break,
+            &spaces);
         style = break_gizmo->style;
       }
       break;
@@ -466,13 +480,17 @@ die_usage(char *program_name)
 int
 main(int argc, char **argv)
 {
-  int opt, line_width;
+  int opt, line_width, justified;
   FILE *input_file, *typeface_file, *output_file;
   struct typeface *typeface;
   struct gizmo *gizmos;
   line_width = 0;
-  while ( (opt = getopt(argc, argv, "l:")) != -1) {
+  justified = 0;
+  while ( (opt = getopt(argc, argv, "jl:")) != -1) {
     switch (opt) {
+    case 'j':
+      justified = 1;
+      break;
     case 'l':
       if (str_to_int(optarg, &line_width))
         die_usage(argv[0]);
@@ -490,7 +508,7 @@ main(int argc, char **argv)
   fclose(typeface_file);
   gizmos = parse_gizmos(input_file, typeface);
   optimise_breaks(gizmos, line_width);
-  print_gizmos(output_file, gizmos, line_width);
+  print_gizmos(output_file, gizmos, line_width, justified);
   free_typeface(typeface);
   free_gizmos(gizmos);
   fclose(input_file);

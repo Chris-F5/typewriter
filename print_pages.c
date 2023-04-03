@@ -9,7 +9,7 @@
 #include "tw.h"
 
 struct text_content {
-  int x, y, font_size;
+  int x, y, font_size, word_spacing;
   struct dbuffer buffer;
   char font_name[256];
 };
@@ -67,10 +67,11 @@ static int
 parse_text(FILE *input, int x, int y, struct text_content *text_content,
     struct pdf_resources *resources)
 {
-  int parse_result, arg1, font_size;
+  int parse_result, arg1, font_size, word_spacing;
   char font_name[256];
   font_size = 0;
   font_name[0] = '\0';
+  word_spacing = 0;
   dbuffer_printf(&text_content->buffer, "1 0 0 1 %d %d Tm", x, y);
   for (;;) {
     parse_result = parse_record(input, &record);
@@ -105,6 +106,18 @@ parse_text(FILE *input, int x, int y, struct text_content *text_content,
       include_font_resource(resources, font_name);
       continue;
     }
+    if (strcmp(record.fields[0], "SPACE") == 0) {
+      if (record.field_count != 2) {
+        fprintf(stderr, "Text SPACE command must take 1 arguments.\n");
+        continue;
+      }
+      if (str_to_int(record.fields[1], &arg1)) {
+        fprintf(stderr, "Text SPACE command's argument must be integer.\n");
+        continue;
+      }
+      word_spacing = arg1;
+      continue;
+    }
     if (strcmp(record.fields[0], "STRING") == 0) {
       if (record.field_count != 2) {
         fprintf(stderr, "Text STRING command must take 1 argument.\n");
@@ -120,6 +133,11 @@ parse_text(FILE *input, int x, int y, struct text_content *text_content,
             font_size);
         strcpy(text_content->font_name, font_name);
         text_content->font_size = font_size;
+      }
+      if (word_spacing != text_content->word_spacing) {
+        dbuffer_printf(&text_content->buffer, " %f Tw",
+            (float)word_spacing / 1000);
+        text_content->word_spacing = word_spacing;
       }
       dbuffer_putc(&text_content->buffer, ' ');
       write_pdf_escaped_string(&text_content->buffer, record.fields[1]);
