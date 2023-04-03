@@ -16,26 +16,34 @@ struct text_content {
 
 static void add_page(FILE *pdf_file, int obj_parent,
     struct pdf_xref_table *xref, struct pdf_page_list *page_list,
-    const struct dbuffer *text_content);
+    struct dbuffer *text_content, struct dbuffer *graphic_content);
 static void write_pdf_escaped_string(struct dbuffer *buffer,
     const char *string);
 static int parse_text(FILE *input, int x, int y,
     struct text_content *text_content, struct pdf_resources *resources);
 static int parse_graphic(FILE *input, int origin_x, int origin_y,
-    struct text_content *text_content, struct pdf_resources *resources);
+    struct text_content *text_content, struct dbuffer *graphic_content,
+    struct pdf_resources *resources);
 
 static struct record record;
 
 static void
 add_page(FILE *pdf_file, int obj_parent, struct pdf_xref_table *xref,
-    struct pdf_page_list *page_list, const struct dbuffer *text_content)
+    struct pdf_page_list *page_list, struct dbuffer *text_content,
+    struct dbuffer *graphic_content)
 {
   int obj_content, obj_page;
+  long length;
   obj_content = allocate_pdf_obj(xref);
   obj_page = allocate_pdf_obj(xref);
 
+  dbuffer_printf(text_content, "ET\n");
+  length = text_content->size + graphic_content->size;
   pdf_start_indirect_obj(pdf_file, xref, obj_content);
-  pdf_write_text_stream(pdf_file, text_content->data, text_content->size);
+  fprintf(pdf_file, "<< /Length %ld >> stream\n", length);
+  fwrite(text_content->data, 1, text_content->size, pdf_file);
+  fwrite(graphic_content->data, 1, graphic_content->size, pdf_file);
+  fprintf(pdf_file, "\nendstream\n");
   pdf_end_indirect_obj(pdf_file);
 
   pdf_start_indirect_obj(pdf_file, xref, obj_page);
@@ -152,7 +160,8 @@ parse_text(FILE *input, int x, int y, struct text_content *text_content,
 
 static int
 parse_graphic(FILE *input, int origin_x, int origin_y,
-    struct text_content *text_content, struct pdf_resources *resources)
+    struct text_content *text_content, struct dbuffer *graphic_content,
+    struct pdf_resources *resources)
 {
   int parse_result;
   int x, y, arg1, arg2;
@@ -188,7 +197,8 @@ parse_graphic(FILE *input, int origin_x, int origin_y,
         return 1;
       }
       if (strcmp(record.fields[1], "GRAPHIC") == 0) {
-        if (parse_graphic(input, x, y, text_content, resources))
+        if (parse_graphic(input, x, y, text_content, graphic_content,
+              resources))
           return 1;
         continue;
       }
@@ -200,6 +210,14 @@ parse_graphic(FILE *input, int origin_x, int origin_y,
       fprintf(stderr, "Invalid graphic START command argument: '%s'\n",
           record.fields[1]);
       return 1;
+    }
+    if (strcmp(record.fields[0], "IMAGE") == 0) {
+      arg1 = include_image_resource(resources, "peppers.jpg");
+      dbuffer_printf(graphic_content, "q\n");
+      dbuffer_printf(graphic_content, "  400 0 0 400 %d %d cm\n", 100, 100);
+      dbuffer_printf(graphic_content, "  /Img%d Do\n", arg1);
+      dbuffer_printf(graphic_content, "Q\n");
+      continue;
     }
     fprintf(stderr, "Invalid graphic command: '%s'\n", record.fields[0]);
   }
@@ -215,6 +233,7 @@ print_pages(FILE *pages_file, FILE *typeface_file, FILE *pdf_file)
   struct pdf_page_list page_list;
   struct pdf_resources resources;
   struct text_content text_content;
+  struct dbuffer graphic_content;
   ret = 0;
   init_pdf_xref_table(&xref_table);
   init_pdf_page_list(&page_list);
@@ -229,6 +248,8 @@ print_pages(FILE *pages_file, FILE *typeface_file, FILE *pdf_file)
   text_content.font_size = 0;
   text_content.font_name[0] = '\0';
   dbuffer_init(&text_content.buffer, 1024 * 32, 1024 * 32);
+  dbuffer_printf(&text_content.buffer, "BT\n");
+  dbuffer_init(&graphic_content, 1024 * 4, 1024 * 4);
   init_record(&record);
   for (;;) {
     parse_result = parse_record(pages_file, &record);
@@ -243,17 +264,21 @@ print_pages(FILE *pages_file, FILE *typeface_file, FILE *pdf_file)
         break;
       }
       if (strcmp(record.fields[1], "PAGE") == 0) {
-        if (parse_graphic(pages_file, 0, 0, &text_content, &resources)) {
+        if (parse_graphic(pages_file, 0, 0, &text_content, &graphic_content,
+              &resources)) {
           ret = 1;
           break;
         }
         add_page(pdf_file, obj_page_list, &xref_table, &page_list,
-            &text_content.buffer);
+            &text_content.buffer, &graphic_content);
         text_content.x = 0;
         text_content.y = 0;
         text_content.font_size = 0;
         text_content.font_name[0] = '\0';
         text_content.buffer.size = 0;
+        dbuffer_printf(&text_content.buffer, "BT\n");
+        graphic_content.size = 0;
+        graphic_content.data[0] = '\0';
         continue;
       }
       fprintf(stderr, "Invalid document START command argument: '%s'\n",

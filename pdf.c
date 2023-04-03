@@ -182,6 +182,7 @@ void
 init_pdf_resources(struct pdf_resources *resources)
 {
   init_record(&resources->fonts_used);
+  init_record(&resources->images);
 }
 
 void
@@ -194,6 +195,19 @@ include_font_resource(struct pdf_resources *resources, const char *font)
   begin_field(&resources->fonts_used);
   dbuffer_printf(&resources->fonts_used.string, "%s", font);
   dbuffer_putc(&resources->fonts_used.string, '\0');
+}
+
+int
+include_image_resource(struct pdf_resources *resources, const char *fname)
+{
+  int i;
+  for (i = 0; i < resources->images.field_count; i++)
+    if (strcmp(resources->images.fields[i], fname) == 0)
+      return i;
+  begin_field(&resources->images);
+  dbuffer_printf(&resources->images.string, "%s", fname);
+  dbuffer_putc(&resources->images.string, '\0');
+  return i;
 }
 
 static int
@@ -231,16 +245,45 @@ pdf_add_font(FILE *pdf_file, FILE *font_file, struct pdf_xref_table *xref,
   return font;
 }
 
+static int
+pdf_add_image(FILE *pdf_file, FILE *image_file, struct pdf_xref_table *xref)
+{
+  int image;
+  long image_length, i;
+  fseek(image_file, 0, SEEK_END);
+  image_length = ftell(image_file);
+  fseek(image_file, 0, SEEK_SET);
+  image = allocate_pdf_obj(xref);
+  pdf_start_indirect_obj(pdf_file, xref, image);
+  fprintf(pdf_file, "<<\n\
+  /Type /XObject\n\
+  /Subtype /Image\n\
+  /Width 267\n\
+  /Height 267\n\
+  /ColorSpace /DeviceRGB\n\
+  /BitsPerComponent 8\n\
+  /Length %ld\n\
+  /Filter /DCTDecode\n\
+  >>\n", image_length);
+  fprintf(pdf_file, "stream\n");
+  for (i = 0; i < image_length; i++)
+    fputc(fgetc(image_file), pdf_file);
+  fprintf(pdf_file, "\nendstream\n");
+  pdf_end_indirect_obj(pdf_file);
+  return image;
+}
+
 void
 pdf_add_resources(FILE *pdf_file, FILE *typeface_file, int resources_obj,
     const struct pdf_resources *resources, struct pdf_xref_table *xref)
 {
-  FILE *font_file;
+  FILE *font_file, *image_file;
   struct record typeface_record;
   int i, parse_result;
-  int *font_objs;
+  int *font_objs, *image_objs;
   init_record(&typeface_record);
   font_objs = xmalloc(resources->fonts_used.field_count * sizeof(int));
+  image_objs = xmalloc(resources->images.field_count * sizeof(int));
   for (i = 0; i < resources->fonts_used.field_count; i++)
     font_objs[i] = -1;
   while ( (parse_result = parse_record(typeface_file, &typeface_record))
@@ -272,7 +315,7 @@ pdf_add_resources(FILE *pdf_file, FILE *typeface_file, int resources_obj,
       continue;
     }
     font_objs[i] = pdf_add_font(pdf_file, font_file, xref,
-        typeface_record.fields[0]);
+      typeface_record.fields[0]);
     if (font_objs[i] == -1) {
       fprintf(stderr, "Failed to parse ttf file '%s'\n",
           typeface_record.fields[1]);
@@ -280,6 +323,17 @@ pdf_add_resources(FILE *pdf_file, FILE *typeface_file, int resources_obj,
     fclose(font_file);
   }
   free_record(&typeface_record);
+
+  for (i = 0; i < resources->images.field_count; i++) {
+    image_file = fopen(resources->images.fields[i], "r");
+    if (image_file == NULL) {
+      fprintf(stderr, "Failed to open image file '%s'\n",
+          resources->images.fields[i]);
+      continue;
+    }
+    image_objs[i] = pdf_add_image(pdf_file, image_file, xref);
+    fclose(image_file);
+  }
 
   pdf_start_indirect_obj(pdf_file, xref, resources_obj);
   fprintf(pdf_file, "<<\n  /Font <<\n");
@@ -291,15 +345,20 @@ pdf_add_resources(FILE *pdf_file, FILE *typeface_file, int resources_obj,
     fprintf(pdf_file, "    /%s %d 0 R\n", resources->fonts_used.fields[i],
         font_objs[i]);
   }
+  fprintf(pdf_file, "  >>\n  /XObject <<\n");
+  for (i = 0; i < resources->images.field_count; i++)
+    fprintf(pdf_file, "    /Img%d %d 0 R\n", i, image_objs[i]);
   fprintf(pdf_file, "  >>\n>>\n");
   pdf_end_indirect_obj(pdf_file);
   free(font_objs);
+  free(image_objs);
 }
 
 void
 free_pdf_resources(struct pdf_resources *resources)
 {
   free_record(&resources->fonts_used);
+  free_record(&resources->images);
 }
 
 void

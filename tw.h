@@ -37,6 +37,7 @@ struct font_info {
 
 struct pdf_resources {
   struct record fonts_used;
+  struct record images;
 };
 
 struct pdf_page_list {
@@ -101,6 +102,7 @@ void pdf_add_footer(FILE *file, const struct pdf_xref_table *xref,
 void free_pdf_xref_table(struct pdf_xref_table *xref);
 void init_pdf_resources(struct pdf_resources *resources);
 void include_font_resource(struct pdf_resources *resources, const char *font);
+int include_image_resource(struct pdf_resources *resources, const char *fname);
 void pdf_add_resources(FILE *pdf_file, FILE *typeface_file, int resources_obj,
     const struct pdf_resources *resources, struct pdf_xref_table *xref);
 void free_pdf_resources(struct pdf_resources *resources);
