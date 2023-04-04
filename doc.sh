@@ -4,7 +4,7 @@
 
 (sh | ./pager.py) << END_CONTENT
 
-(./markup_text.py) << END_PARAGRAPH
+(./markup_text.py -n j -f=r) << END_PARAGRAPH
 Hello _world,_ this is a footnote
 ^1 this is the content of the first footnote
 and some more text
@@ -26,7 +26,7 @@ echo "IMAGE 100 100 peppers.jpg"
 echo "END"
 echo "glue 10"
 
-(./markup_text.py) << END_PARAGRAPH
+(./markup_text.py -n j -f r) << END_PARAGRAPH
 Lorem* ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Cursus sit amet dictum sit amet justo donec enim diam. Amet luctus venenatis lectus magna fringilla. Sit amet purus gravida quis. Mollis aliquam ut porttitor leo a diam sollicitudin tempor. Leo a diam sollicitudin tempor. Vitae ultricies leo integer malesuada nunc vel risus commodo viverra. Mollis aliquam ut porttitor leo. Nunc pulvinar sapien et ligula ullamcorper malesuada proin libero nunc. Eu augue ut lectus arcu bibendum at varius vel. Eget gravida cum sociis natoque penatibus et magnis dis. In tellus integer feugiat scelerisque varius morbi. Ullamcorper sit amet risus nullam eget felis. Tortor dignissim convallis aenean et tortor.
 
 Posuere ac ut consequat semper viverra. Magna fringilla urna porttitor rhoncus dolor purus non. Faucibus pulvinar elementum integer enim neque volutpat ac. Nunc mi ipsum faucibus vitae aliquet nec ullamcorper. Felis bibendum ut tristique et egestas quis. Habitasse platea dictumst quisque sagittis. Non enim praesent elementum facilisis leo vel fringilla est ullamcorper. Rhoncus mattis rhoncus urna neque viverra justo nec ultrices dui. Cursus vitae congue mauris rhoncus aenean. Urna nec tincidunt praesent semper feugiat nibh sed pulvinar. Faucibus ornare suspendisse sed nisi lacus sed viverra tellus in. In hac habitasse platea dictumst quisque sagittis purus. Tellus integer feugiat scelerisque varius. Tellus integer feugiat scelerisque varius morbi. Vitae ultricies leo integer malesuada nunc vel risus commodo viverra. Commodo quis imperdiet massa tincidunt nunc pulvinar sapien et. Enim facilisis gravida neque convallis a cras semper auctor. Aenean vel elit scelerisque mauris pellentesque pulvinar pellentesque habitant morbi. Orci eu lobortis elementum nibh tellus. Cras adipiscing enim eu turpis egestas.

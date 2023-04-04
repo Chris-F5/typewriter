@@ -1,11 +1,12 @@
 #!/bin/python3
 
-import sys, subprocess
+import sys, subprocess, argparse
 
-footnotes = []
+def warn(msg):
+  print(msg, file=sys.stderr)
 
-def line_break(text, width):
-  process = subprocess.Popen(["./line_break", "-j", "-l", str(width)],
+def line_break(text, width, align):
+  process = subprocess.Popen(["./line_break", "-" + align, "-w", str(width)],
                              stdin=subprocess.PIPE,
                              stdout=subprocess.PIPE)
   text = bytes(text, "ascii")
@@ -14,9 +15,10 @@ def line_break(text, width):
   return output.decode("ascii")
 
 class TextStream:
-  def __init__(self, width, base_size):
+  def __init__(self, width, base_size, align):
     self.width = width
     self.base_size = base_size
+    self.align = align
     self.in_paragraph = False
     self.in_string = False
     self.text = ""
@@ -55,7 +57,7 @@ class TextStream:
     self.text += "MARK {}\n".format(mark)
   def to_content(self):
     self.close_string()
-    content = line_break(self.text, self.width)
+    content = line_break(self.text, self.width, self.align)
     for i in range(len(self.insertions)):
       content = content.replace('\n^' + str(i), '\n' + self.insertions[i])
     return content
@@ -65,13 +67,16 @@ class TextStream:
       self.add_word(word)
 
 class MainStream(TextStream):
-  def __init__(self, normal_width, footnote_width, base_size):
-    super().__init__(normal_width, base_size)
+  def __init__(self, normal_width, footnote_width, base_size, align, \
+      footnote_align):
+    super().__init__(normal_width, base_size, align)
     self.footnote_width = footnote_width
+    self.footnote_align = footnote_align
     self.set_font("Regular", self.base_size)
     self.font_mode = 'R'
   def read_footnote(self, footnote_symbol, footnote_text):
-    footnote_stream = TextStream(self.footnote_width, self.base_size)
+    footnote_stream = TextStream(self.footnote_width, self.base_size, \
+        self.footnote_align)
     footnote_stream.set_font("Regular", footnote_stream.base_size)
     footnote_stream.add_word(footnote_symbol)
     footnote_stream.set_font("Italic", footnote_stream.base_size)
@@ -132,7 +137,22 @@ class MainStream(TextStream):
     if len(words) == 0:
       self.end_paragraph()
 
-main_stream = MainStream(475, 475, 12)
+arg_parser = argparse.ArgumentParser()
+arg_parser.add_argument("-n", "--normal_align")
+arg_parser.add_argument("-f", "--footnote_align")
+args = arg_parser.parse_args()
+if args.normal_align == None:
+  args.normal_align = 'l'
+if args.footnote_align == None:
+  args.footnote_align = 'l'
+if not args.normal_align in ('l', 'r', 'c', 'j'):
+  warn("Invalid normal align mode.")
+  exit(1)
+if not args.normal_align in ('l', 'r', 'c', 'j'):
+  warn("Invalid footnote align mode.")
+  exit(1)
+
+main_stream = MainStream(475, 475, 12, args.normal_align, args.footnote_align)
 for line in sys.stdin:
   main_stream.read_line(line)
 print(main_stream.to_content(), end='')

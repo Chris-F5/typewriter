@@ -12,6 +12,13 @@
 
 #include "tw.h"
 
+enum align {
+  ALIGN_LEFT,
+  ALIGN_RIGHT,
+  ALIGN_CENTRE,
+  ALIGN_JUSTIFIED,
+};
+
 enum gizmo_type {
   GIZMO_TEXT,
   GIZMO_BREAK,
@@ -72,7 +79,7 @@ static void optimise_breaks(struct gizmo *gizmo, int line_width);
 static void print_text(struct dbuffer *buffer, const struct style *old_style,
     const struct style *style, const char *string, int *spaces);
 static void print_gizmos(FILE *output, struct gizmo *gizmo, int line_width,
-    int justified);
+    int align);
 
 static struct typeface *
 open_typeface(FILE *typeface_file)
@@ -323,8 +330,6 @@ consider_breaks(struct gizmo *gizmo, int source_penalty,
   struct break_gizmo *break_gizmo;
   int width, penalty;
   width = 0;
-  /* Convert line_width to text space */
-  line_width *= 1000;
   for (; gizmo; gizmo = gizmo->next) {
     switch (gizmo->type) {
     case GIZMO_TEXT:
@@ -394,7 +399,7 @@ print_text(struct dbuffer *buffer, const struct style *old_style,
 }
 
 static void
-print_gizmos(FILE *output, struct gizmo *gizmo, int line_width, int justified)
+print_gizmos(FILE *output, struct gizmo *gizmo, int line_width, int align)
 {
   int width, height, spaces;
   struct style style;
@@ -437,12 +442,22 @@ print_gizmos(FILE *output, struct gizmo *gizmo, int line_width, int justified)
         if (line.size) {
           dbuffer_putc(&line, '\0');
           fprintf(output, "box %d\n", height);
+          if (align == ALIGN_CENTRE) {
+            fprintf(output, "START GRAPHIC\n");
+            fprintf(output, "MOVE %d 0\n", (line_width - width) / 2000);
+          } else if (align == ALIGN_RIGHT) {
+            fprintf(output, "START GRAPHIC\n");
+            fprintf(output, "MOVE %d 0\n", (line_width - width) / 1000);
+          }
           fprintf(output, "START TEXT\n");
-          if (justified && spaces && !break_gizmo->early_break) {
-            fprintf(output, "SPACE %d\n", (line_width * 1000 - width) / spaces);
+          if (align == ALIGN_JUSTIFIED && spaces && !break_gizmo->early_break) {
+            fprintf(output, "SPACE %d\n", (line_width - width) / spaces);
           }
           fprintf(output, "%s", line.data);
           fprintf(output, "END\n");
+          if (align == ALIGN_CENTRE || align == ALIGN_RIGHT) {
+            fprintf(output, "END\n");
+          }
         }
         fprintf(output, line_marks.data);
         line_marks.size = 0;
@@ -480,20 +495,31 @@ die_usage(char *program_name)
 int
 main(int argc, char **argv)
 {
-  int opt, line_width, justified;
+  int opt, line_width, align;
   FILE *input_file, *typeface_file, *output_file;
   struct typeface *typeface;
   struct gizmo *gizmos;
   line_width = 0;
-  justified = 0;
-  while ( (opt = getopt(argc, argv, "jl:")) != -1) {
+  align = ALIGN_LEFT;
+  while ( (opt = getopt(argc, argv, "ljrcw:")) != -1) {
     switch (opt) {
-    case 'j':
-      justified = 1;
-      break;
     case 'l':
+      align = ALIGN_LEFT;
+      break;
+    case 'j':
+      align = ALIGN_JUSTIFIED;
+      break;
+    case 'r':
+      align = ALIGN_RIGHT;
+      break;
+    case 'c':
+      align = ALIGN_CENTRE;
+      break;
+    case 'w':
       if (str_to_int(optarg, &line_width))
         die_usage(argv[0]);
+      /* Convert point space to text space. */
+      line_width *= 1000;
       break;
     default:
       die_usage(argv[0]);
@@ -508,7 +534,7 @@ main(int argc, char **argv)
   fclose(typeface_file);
   gizmos = parse_gizmos(input_file, typeface);
   optimise_breaks(gizmos, line_width);
-  print_gizmos(output_file, gizmos, line_width, justified);
+  print_gizmos(output_file, gizmos, line_width, align);
   free_typeface(typeface);
   free_gizmos(gizmos);
   fclose(input_file);
