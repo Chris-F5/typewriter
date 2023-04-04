@@ -169,7 +169,7 @@ parse_gizmos(FILE *file, const struct typeface *typeface)
   struct gizmo *first_gizmo;
   struct gizmo **next_gizmo;
   struct style current_style;
-  int parse_result;
+  int parse_result, arg1;
   struct record record;
   first_gizmo = NULL;
   next_gizmo = &first_gizmo;
@@ -225,8 +225,13 @@ parse_gizmos(FILE *file, const struct typeface *typeface)
       continue;
     }
     if (strcmp(record.fields[0], "OPTBREAK") == 0) {
-      if (record.field_count != 3) {
-        fprintf(stderr, "Text OPTBREAK command must have 2 options.\n");
+      if (record.field_count != 4) {
+        fprintf(stderr, "Text OPTBREAK command must have 3 options.\n");
+        continue;
+      }
+      if (str_to_int(record.fields[3], &arg1)) {
+        fprintf(stderr,
+            "Text OPTBREAK command's 3rd option must be integer.\n");
         continue;
       }
       *next_gizmo = malloc(sizeof(struct break_gizmo)
@@ -234,7 +239,7 @@ parse_gizmos(FILE *file, const struct typeface *typeface)
           + strlen(record.fields[2]) + 2);
       (*next_gizmo)->type = GIZMO_BREAK;
       (*next_gizmo)->next = NULL;
-      ((struct break_gizmo *)*next_gizmo)->spacing = 0;
+      ((struct break_gizmo *)*next_gizmo)->spacing = arg1;
       ((struct break_gizmo *)*next_gizmo)->does_break = 0;
       ((struct break_gizmo *)*next_gizmo)->early_break = 0;
       ((struct break_gizmo *)*next_gizmo)->total_penalty = INT_MAX;
@@ -257,14 +262,18 @@ parse_gizmos(FILE *file, const struct typeface *typeface)
       continue;
     }
     if (strcmp(record.fields[0], "BREAK") == 0) {
-      if (record.field_count != 1) {
-        fprintf(stderr, "Text BREAK command takes no options.\n");
+      if (record.field_count != 2) {
+        fprintf(stderr, "Text BREAK command must take 1 option.\n");
+        continue;
+      }
+      if (str_to_int(record.fields[1], &arg1)) {
+        fprintf(stderr, "Text BREAK command's 1st option must be integer.\n");
         continue;
       }
       *next_gizmo = malloc(sizeof(struct break_gizmo) + 1);
       (*next_gizmo)->type = GIZMO_BREAK;
       (*next_gizmo)->next = NULL;
-      ((struct break_gizmo *)*next_gizmo)->spacing = 12;
+      ((struct break_gizmo *)*next_gizmo)->spacing = arg1;
       ((struct break_gizmo *)*next_gizmo)->does_break = 1;
       ((struct break_gizmo *)*next_gizmo)->early_break = 1;
       ((struct break_gizmo *)*next_gizmo)->total_penalty = INT_MAX;
