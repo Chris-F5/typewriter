@@ -163,8 +163,7 @@ parse_graphic(FILE *input, int origin_x, int origin_y,
     struct text_content *text_content, struct dbuffer *graphic_content,
     struct pdf_resources *resources)
 {
-  int parse_result;
-  int x, y, arg1, arg2;
+  int parse_result, x, y, arg1, arg2, image_id;
   x = origin_x;
   y = origin_y;
   for (;;) {
@@ -212,10 +211,21 @@ parse_graphic(FILE *input, int origin_x, int origin_y,
       return 1;
     }
     if (strcmp(record.fields[0], "IMAGE") == 0) {
-      arg1 = include_image_resource(resources, "peppers.jpg");
+      if (record.field_count != 4) {
+        fprintf(stderr, "IMAGE command must take 3 arguments.\n");
+        continue;
+      }
+      if (str_to_int(record.fields[1], &arg1)
+          || str_to_int(record.fields[2], &arg2)) {
+        fprintf(stderr,
+            "IMAGE command's 1st and 2nd arguments must be integer.\n");
+        continue;
+      }
+      image_id = include_image_resource(resources, record.fields[3]);
       dbuffer_printf(graphic_content, "q\n");
-      dbuffer_printf(graphic_content, "  400 0 0 400 %d %d cm\n", 100, 100);
-      dbuffer_printf(graphic_content, "  /Img%d Do\n", arg1);
+      dbuffer_printf(graphic_content, "  %d 0 0 %d %d %d cm\n", arg1, arg2, x,
+          y);
+      dbuffer_printf(graphic_content, "  /Img%d Do\n", image_id);
       dbuffer_printf(graphic_content, "Q\n");
       continue;
     }
