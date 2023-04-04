@@ -62,8 +62,8 @@ read_jpeg(FILE *file, struct jpeg_info *info)
         break;
       case 0xc0: /* baseline DCT segment (contains image width and height) */
         fseek(file, 3, SEEK_CUR);
-        info->width = read_uint16(file);
         info->height = read_uint16(file);
+        info->width = read_uint16(file);
         fread(&info->components, 1, 1, file);
         goto end_scan;
       case 0xc2: /* progressive DCT segment (unsupported) */
