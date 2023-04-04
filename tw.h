@@ -35,6 +35,11 @@ struct font_info {
   int char_widths[256];
 };
 
+struct jpeg_info {
+  int width, height;
+  unsigned char components;
+};
+
 struct pdf_resources {
   struct record fonts_used;
   struct record images;
@@ -78,6 +83,9 @@ void *stack_pop_pointer(struct stack *stack);
 
 /* ttf.c */
 int read_ttf(FILE *file, struct font_info *info);
+
+/* jpeg.c */
+int read_jpeg(FILE *file, struct jpeg_info *info);
 
 /* pdf.c */
 void pdf_write_header(FILE *file);

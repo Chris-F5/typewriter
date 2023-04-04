@@ -10,6 +10,11 @@
 
 #include "tw.h"
 
+static int pdf_add_font(FILE *pdf_file, FILE *font_file,
+    struct pdf_xref_table *xref, const char *name);
+static int pdf_add_image(FILE *pdf_file, FILE *image_file,
+    struct pdf_xref_table *xref);
+
 void
 pdf_write_header(FILE *file)
 {
@@ -250,6 +255,11 @@ pdf_add_image(FILE *pdf_file, FILE *image_file, struct pdf_xref_table *xref)
 {
   int image;
   long image_length, i;
+  struct jpeg_info jpeg_info;
+  const char *color_space;
+  if (read_jpeg(image_file, &jpeg_info))
+    return 1;
+  color_space = jpeg_info.components == 3 ? "DeviceRGB" : "DeviceGray";
   fseek(image_file, 0, SEEK_END);
   image_length = ftell(image_file);
   fseek(image_file, 0, SEEK_SET);
@@ -258,13 +268,13 @@ pdf_add_image(FILE *pdf_file, FILE *image_file, struct pdf_xref_table *xref)
   fprintf(pdf_file, "<<\n\
   /Type /XObject\n\
   /Subtype /Image\n\
-  /Width 267\n\
-  /Height 267\n\
-  /ColorSpace /DeviceRGB\n\
+  /Width %d\n\
+  /Height %d\n\
+  /ColorSpace /%s\n\
   /BitsPerComponent 8\n\
   /Length %ld\n\
   /Filter /DCTDecode\n\
-  >>\n", image_length);
+  >>\n", jpeg_info.width, jpeg_info.height, color_space, image_length);
   fprintf(pdf_file, "stream\n");
   for (i = 0; i < image_length; i++)
     fputc(fgetc(image_file), pdf_file);
