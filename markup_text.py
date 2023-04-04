@@ -36,6 +36,8 @@ class TextStream:
     self.close_string()
     self.text += "FONT {} {}\n".format(font_name, font_size)
   def add_word(self, word):
+    if len(word) == 0:
+      return
     self.close_string()
     if self.in_paragraph:
       self.text += 'OPTBREAK " " ""\n'
@@ -109,23 +111,24 @@ class MainStream(TextStream):
         self.set_font("Bold", self.base_size)
         word = word[1:]
         self.font_mode = 'B'
-      if word[0] == '_' and self.font_mode == 'R':
+      elif word[0] == '_' and self.font_mode == 'R':
         self.set_font("Italic", self.base_size)
         word = word[1:]
         self.font_mode = 'I'
+      if len(word) == 0:
+        continue
       if word[-1] == '*' and self.font_mode == 'B':
         word = word[:-1]
         self.add_word(word)
         self.set_font("Regular", self.base_size)
         self.font_mode = 'R'
-        continue
-      if word[-1] == '_' and self.font_mode == 'I':
+      elif word[-1] == '_' and self.font_mode == 'I':
         word = word[:-1]
         self.add_word(word)
         self.set_font("Regular", self.base_size)
         self.font_mode = 'R'
-        continue
-      self.add_word(word)
+      else:
+        self.add_word(word)
     if len(words) == 0:
       self.end_paragraph()
 

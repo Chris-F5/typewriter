@@ -372,11 +372,11 @@ static void
 print_text(struct dbuffer *buffer, const struct style *old_style,
     const struct style *style, const char *string, int *spaces)
 {
-  if (*string == '\0')
-    return;
   if (strcmp(style->font_name, old_style->font_name)
       || style->font_size != old_style->font_size)
     dbuffer_printf(buffer, "FONT %s %d\n", style->font_name, style->font_size);
+  if (*string == '\0')
+    return;
   dbuffer_printf(buffer, "STRING \"");
   while (*string) {
     if (*string == '\n') {
