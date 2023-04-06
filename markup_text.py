@@ -28,6 +28,7 @@ class TextStream:
     if not self.in_string:
       self.text += 'STRING "'
       self.in_string = True
+    string = string.replace('\\', '\\\\')
     string = string.replace('"', '\\"')
     string = string.replace('\n', '')
     self.text += string
@@ -110,7 +111,7 @@ class MainStream(TextStream):
         level += 1
       if level > 4:
         level = 4
-      size = self.normal_size + 24 // level
+      size = self.normal_size + 12 // level
       self.end_paragraph()
       self.set_font("Regular", size)
       self.read_words(line)
