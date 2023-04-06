@@ -1,6 +1,6 @@
 #!/bin/python3
 
-import sys
+import sys, argparse
 
 def warn(msg):
   print(msg, file=sys.stderr)
@@ -74,11 +74,7 @@ class Glue:
 def gizmos_height(gizmos):
   height = 0
   discardable_height = 0
-  can_discard = True
   for gizmo in gizmos:
-    if can_discard and gizmo.is_discardable():
-      continue
-    can_discard = False
     if gizmo.is_discardable():
       discardable_height += gizmo.get_height()
     else:
@@ -129,29 +125,28 @@ class Page:
     print("START PAGE")
     y = self.height - self.top_padding
     x = self.left_padding
-    can_discard = True
     for gizmo in self.normal_gizmos:
-      if can_discard and gizmo.is_discardable():
-        continue
-      can_discard = False
       y -= gizmo.get_height()
       if gizmo.is_visible():
         print("MOVE {} {}".format(x, y))
         gizmo.print()
     y = self.bot_padding + gizmos_height(self.footnote_gizmos)
-    can_discard = True
     for gizmo in self.footnote_gizmos:
-      if can_discard and gizmo.is_discardable():
-        continue
-      can_discard = False
       y -= gizmo.get_height()
       if gizmo.is_visible():
         print("MOVE {} {}".format(x, y))
         gizmo.print()
     print("END")
 
+arg_parser = argparse.ArgumentParser()
+arg_parser.add_argument("-l", "--left_margin", type=int, default=102)
+arg_parser.add_argument("-r", "--right_margin", type=int, default=102)
+arg_parser.add_argument("-t", "--top_margin", type=int, default=125)
+arg_parser.add_argument("-b", "--bot_margin", type=int, default=125)
+args = arg_parser.parse_args()
 
-page_generator = PageGenerator(595, 842, 40, 40, 60, 60)
+page_generator = PageGenerator(595, 842, args.top_margin, args.bot_margin, \
+    args.left_margin, args.right_margin)
 pages = []
 active_page = page_generator.new_page()
 pending_normal_gizmos = []
