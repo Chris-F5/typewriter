@@ -497,7 +497,7 @@ print_gizmos(FILE *output, struct gizmo *gizmo, int line_width, int align)
 static void
 die_usage(char *program_name)
 {
-  fprintf(stderr, "Usage: %s -l NUM\n", program_name);
+  fprintf(stderr, "Usage: %s -w NUM [-l] [-r] [-j] [-c]\n", program_name);
   exit(1);
 }
 
