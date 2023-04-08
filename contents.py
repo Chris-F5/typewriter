@@ -1,6 +1,6 @@
 #!/bin/python3
 
-import sys, subprocess, re
+import sys, subprocess, re, argparse
 
 def warn(msg):
   print(msg, file=sys.stderr)
@@ -25,7 +25,13 @@ def parse_record(line):
 def strip_string(string):
   return string.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '')
 
-char_width = 60
+arg_parser = argparse.ArgumentParser()
+arg_parser.add_argument("-c", "--char_width", type=int, default=60)
+arg_parser.add_argument("-s", "--font_size", type=int, default=12)
+args = arg_parser.parse_args()
+
+char_width = args.char_width
+font_size = args.font_size
 
 for line in sys.stdin:
   fields = parse_record(line)
@@ -35,9 +41,9 @@ for line in sys.stdin:
   padding = char_width - len(fields[0]) - len(fields[1])
   if padding < 0:
     padding = 0
-  graphic = "box 12\n"
+  graphic = "box {}\n".format(args.font_size)
   graphic += "START TEXT\n"
-  graphic += "FONT Monospace 12\n"
+  graphic += "FONT Monospace {}\n".format(args.font_size)
   string = fields[0] + '.' * padding + fields[1]
   graphic += 'STRING "{}"\n'.format(strip_string(string))
   graphic += "END\n"
