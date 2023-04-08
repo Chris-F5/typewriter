@@ -76,8 +76,8 @@ static void free_gizmos(struct gizmo *gizmo);
 static void consider_breaks(struct gizmo *gizmo, int source_penalty,
     struct break_gizmo *source, int line_width);
 static void optimise_breaks(struct gizmo *gizmo, int line_width);
-static void print_text(struct dbuffer *buffer, const struct style *old_style,
-    const struct style *style, const char *string, int *spaces);
+static void print_text(struct dbuffer *buffer, struct style *style,
+    const struct style *new_style, const char *string, int *spaces);
 static void print_gizmos(FILE *output, struct gizmo *gizmo, int line_width,
     int align);
 
@@ -383,14 +383,16 @@ optimise_breaks(struct gizmo *gizmo, int line_width)
 }
 
 static void
-print_text(struct dbuffer *buffer, const struct style *old_style,
-    const struct style *style, const char *string, int *spaces)
+print_text(struct dbuffer *buffer, struct style *style,
+    const struct style *new_style, const char *string, int *spaces)
 {
-  if (strcmp(style->font_name, old_style->font_name)
-      || style->font_size != old_style->font_size)
-    dbuffer_printf(buffer, "FONT %s %d\n", style->font_name, style->font_size);
   if (*string == '\0')
     return;
+  if (strcmp(style->font_name, new_style->font_name)
+      || style->font_size != new_style->font_size) {
+    memcpy(style, new_style, sizeof(struct style));
+    dbuffer_printf(buffer, "FONT %s %d\n", style->font_name, style->font_size);
+  }
   dbuffer_printf(buffer, "STRING \"");
   while (*string) {
     if (*string == '\n') {
@@ -434,7 +436,6 @@ print_gizmos(FILE *output, struct gizmo *gizmo, int line_width, int align)
       width += text_gizmo->width;
       print_text(&line, &style, &text_gizmo->style, text_gizmo->string,
           &spaces);
-      style = text_gizmo->style;
       break;
     case GIZMO_MARK:
       mark_gizmo = (struct mark_gizmo *)gizmo;
@@ -485,7 +486,6 @@ print_gizmos(FILE *output, struct gizmo *gizmo, int line_width, int align)
         width += break_gizmo->no_break_width;
         print_text(&line, &style, &break_gizmo->style, break_gizmo->no_break,
             &spaces);
-        style = break_gizmo->style;
       }
       break;
     }
