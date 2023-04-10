@@ -53,7 +53,7 @@ struct text_gizmo {
 struct break_gizmo {
   int type; /* GIZMO_BREAK */
   struct gizmo *next;
-  int does_break, early_break, total_penalty, spacing;
+  int force_break, total_penalty, spacing, selected;
   struct break_gizmo *best_source;
   struct style style;
   int no_break_width, at_break_width;
@@ -240,8 +240,8 @@ parse_gizmos(FILE *file, const struct typeface *typeface)
       (*next_gizmo)->type = GIZMO_BREAK;
       (*next_gizmo)->next = NULL;
       ((struct break_gizmo *)*next_gizmo)->spacing = arg1;
-      ((struct break_gizmo *)*next_gizmo)->does_break = 0;
-      ((struct break_gizmo *)*next_gizmo)->early_break = 0;
+      ((struct break_gizmo *)*next_gizmo)->force_break = 0;
+      ((struct break_gizmo *)*next_gizmo)->selected = 0;
       ((struct break_gizmo *)*next_gizmo)->total_penalty = INT_MAX;
       ((struct break_gizmo *)*next_gizmo)->best_source = NULL;
       ((struct break_gizmo *)*next_gizmo)->style = current_style;
@@ -274,8 +274,8 @@ parse_gizmos(FILE *file, const struct typeface *typeface)
       (*next_gizmo)->type = GIZMO_BREAK;
       (*next_gizmo)->next = NULL;
       ((struct break_gizmo *)*next_gizmo)->spacing = arg1;
-      ((struct break_gizmo *)*next_gizmo)->does_break = 1;
-      ((struct break_gizmo *)*next_gizmo)->early_break = 1;
+      ((struct break_gizmo *)*next_gizmo)->force_break = 1;
+      ((struct break_gizmo *)*next_gizmo)->selected = 0;
       ((struct break_gizmo *)*next_gizmo)->total_penalty = INT_MAX;
       ((struct break_gizmo *)*next_gizmo)->best_source = NULL;
       ((struct break_gizmo *)*next_gizmo)->style = current_style;
@@ -306,8 +306,8 @@ parse_gizmos(FILE *file, const struct typeface *typeface)
   (*next_gizmo)->type = GIZMO_BREAK;
   (*next_gizmo)->next = NULL;
   ((struct break_gizmo *)*next_gizmo)->spacing = 0;
-  ((struct break_gizmo *)*next_gizmo)->does_break = 1;
-  ((struct break_gizmo *)*next_gizmo)->early_break = 1;
+  ((struct break_gizmo *)*next_gizmo)->force_break = 1;
+  ((struct break_gizmo *)*next_gizmo)->selected = 0;
   ((struct break_gizmo *)*next_gizmo)->total_penalty = INT_MAX;
   ((struct break_gizmo *)*next_gizmo)->best_source = NULL;
   ((struct break_gizmo *)*next_gizmo)->style = current_style;
@@ -348,7 +348,7 @@ consider_breaks(struct gizmo *gizmo, int source_penalty,
       break_gizmo = (struct break_gizmo *)gizmo;
       if (width + break_gizmo->at_break_width <= line_width) {
         penalty = (line_width - width - break_gizmo->at_break_width) / 1000;
-        if (break_gizmo->does_break)
+        if (break_gizmo->force_break)
           penalty = 0;
         if (break_gizmo->total_penalty > source_penalty + penalty) {
           break_gizmo->best_source = source;
@@ -358,7 +358,7 @@ consider_breaks(struct gizmo *gizmo, int source_penalty,
       width += break_gizmo->no_break_width;
       if (width > line_width)
         goto stop;
-      if (break_gizmo->does_break)
+      if (width && break_gizmo->force_break)
         goto stop;
       break;
     }
@@ -379,7 +379,7 @@ optimise_breaks(struct gizmo *gizmo, int line_width)
           line_width);
     }
   for (; last_break; last_break = last_break->best_source)
-    last_break->does_break = 1;
+    last_break->selected = 1;
 }
 
 static void
@@ -445,7 +445,7 @@ print_gizmos(FILE *output, struct gizmo *gizmo, int line_width, int align)
       break_gizmo = (struct break_gizmo *)gizmo;
       if (break_gizmo->style.font_size > height)
         height = break_gizmo->style.font_size;
-      if (break_gizmo->does_break) {
+      if (break_gizmo->selected) {
         width += break_gizmo->at_break_width;
         print_text(&line, &style, &break_gizmo->style, break_gizmo->at_break,
             &spaces);
@@ -460,7 +460,7 @@ print_gizmos(FILE *output, struct gizmo *gizmo, int line_width, int align)
             fprintf(output, "MOVE %d 0\n", (line_width - width) / 1000);
           }
           fprintf(output, "START TEXT\n");
-          if (align == ALIGN_JUSTIFIED && spaces && !break_gizmo->early_break) {
+          if (align == ALIGN_JUSTIFIED && spaces && !break_gizmo->force_break) {
             fprintf(output, "SPACE %d\n", (line_width - width) / spaces);
           }
           fprintf(output, "%s", line.data);
@@ -472,7 +472,8 @@ print_gizmos(FILE *output, struct gizmo *gizmo, int line_width, int align)
         fprintf(output, line_marks.data);
         line_marks.size = 0;
         line_marks.data[0] = '\0';
-        if (break_gizmo->spacing)
+        if (break_gizmo->spacing
+            && (break_gizmo->next == NULL || break_gizmo->next->next))
           fprintf(output, "glue %d\n", break_gizmo->spacing);
         fprintf(output, "opt_break\n");
         height = 0;
