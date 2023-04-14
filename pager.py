@@ -132,6 +132,8 @@ class Page:
       file.write('"{}" "{}"\n'.format(strip_string(mark), \
           strip_string(self.page_number)))
   def add_content(self, normal_gizmos, footnote_gizmos):
+    if len(normal_gizmos) == 0 and len(footnote_gizmos) == 0:
+      return
     self.empty = False
     self.normal_gizmos += normal_gizmos
     self.footnote_gizmos += footnote_gizmos
@@ -232,7 +234,7 @@ while True:
       height = 0
     glue = Glue(height)
     pending_gizmos[current_flow].append(glue)
-  elif fields[0] == "opt_break":
+  elif fields[0] == "opt_break" or fields[0] == "new_page":
     if not active_page.try_add_content(pending_gizmos["normal"],
                                 pending_gizmos["footnote"]):
       pages.append(active_page)
@@ -240,6 +242,9 @@ while True:
       active_page.add_content(pending_gizmos["normal"],
                               pending_gizmos["footnote"])
     pending_gizmos = {"normal": [], "footnote": []}
+    if fields[0] == "new_page" and not active_page.empty:
+      pages.append(active_page)
+      active_page = page_generator.new_page()
   else:
     warn("unrecognised command '{}'".format(fields[0]))
 
