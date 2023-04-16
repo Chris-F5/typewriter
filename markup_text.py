@@ -109,9 +109,10 @@ class MainStream(TextStream):
       while line[0] == '#':
         line = line[1:]
         level += 1
-      if level > 4:
-        level = 4
-      size = self.normal_size + 12 // level
+      size = None
+      if level > 2:
+        level = 2
+      size = int(self.normal_size * 1.62 ** (3 - level))
       self.end_paragraph()
       self.set_font("Regular", size)
       self.read_words(line)
