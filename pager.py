@@ -1,5 +1,9 @@
 #!/bin/python3
 
+# pager.py
+# Read _content_ from standard input, split into _pages_ which are written to
+# standard output.
+
 import sys, argparse, re
 from utils import *
 

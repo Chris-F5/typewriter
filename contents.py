@@ -1,5 +1,10 @@
 #!/bin/python3
 
+# contents.py
+# Generated contents page's content.
+# Parses standard input in _contents_ format and writes _content_ to standard
+# output.
+
 import sys, re, argparse
 from utils import *
 

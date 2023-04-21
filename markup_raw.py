@@ -1,7 +1,14 @@
 #!/bin/python3
 
+# markup_raw.py
+# Read text from standard input, preserve line breaks and write _content_ text
+# to standard output with optional breaks inbetween lines.
+
 import sys, argparse
 from utils import *
+
+# Orphans are isolated lines of text at the bottom of a page.
+# Widows are isolated lines of text at the top of a page.
 
 arg_parser = argparse.ArgumentParser()
 arg_parser.add_argument("-s", "--font_size", type=int, default=12)

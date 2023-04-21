@@ -1,8 +1,14 @@
 #!/bin/python3
 
+# markup_text.py
+# Read markup text from standard input.
+# Typeset this text and write _content_ to standard output.
+
 import sys, argparse
 from utils import *
 
+# A _TextStream_ builds a _text_specification_.
+# By invoking _line_break_ this can be converted into _content_.
 class TextStream:
   def __init__(self, width, align, paragraph_spacing, line_spacing):
     self.width = width
@@ -11,7 +17,10 @@ class TextStream:
     self.line_spacing = line_spacing
     self.in_paragraph = False
     self.in_string = False
+    # _text_ is the _text_specification_ string.
     self.text = ""
+    # An insertion is some _content_ to be inserted after the line of text that
+    # the insertion appears on. For example, a footnote is a type of insertion.
     self.insertions = []
   def add_string(self, string):
     if not self.in_string:
@@ -46,6 +55,7 @@ class TextStream:
   def to_content(self):
     self.close_string()
     content = line_break(self.text, self.width, self.align)
+    # Insert the insertion content after line breaking.
     for i in range(len(self.insertions)):
       content = content.replace('\n^' + str(i), '\n' + self.insertions[i])
     return content
@@ -54,6 +64,9 @@ class TextStream:
     for word in words:
       self.add_word(word)
 
+# The _MainStream_ inherits from text _TextStream_.
+# It is used for passing all markup text excluding the content of footnotes.
+# It is able to parse bold text, footnotes and other markup features.
 class MainStream(TextStream):
   def __init__(self, normal_width, footnote_width, normal_size, footnote_size, \
       normal_align, footnote_align, normal_paragraph_spacing, \
@@ -67,8 +80,12 @@ class MainStream(TextStream):
     self.footnote_line_spacing = footnote_line_spacing
     self.footnote_paragraph_spacing = footnote_paragraph_spacing
     self.set_font("Regular", self.normal_size)
+    # Remember the last font set so that if more Regular text is encountered
+    # there is no need to unnecessarily set the font again.
     self.font_mode = 'R'
   def read_footnote(self, footnote_symbol, footnote_text):
+    # Make a new stream for this footnotes content. Write the footnote content
+    # and insert it into the MainStreams text.
     footnote_stream = TextStream(self.footnote_width, self.footnote_align, \
         self.footnote_paragraph_spacing, self.footnote_line_spacing)
     footnote_stream.set_font("Regular", self.footnote_size)
@@ -80,7 +97,9 @@ class MainStream(TextStream):
     content = "flow footnote\n" + content + "flow normal\n"
     self.insert_content(content)
   def read_line(self, line):
+    # Parse a line of markup text.
     if line[0] == '^':
+      # A line starting with '^' is a footnote.
       parts = line[1:].split(maxsplit = 1)
       if len(parts) < 2:
         return
@@ -90,6 +109,7 @@ class MainStream(TextStream):
       self.read_footnote(footnote_symbol, footnote_text)
       return
     if line[0] == '#':
+      # A line starting with one or more '#'s is a header.
       line = line[1:]
       level = 1
       while line[0] == '#':
@@ -108,6 +128,7 @@ class MainStream(TextStream):
       return
     words = line.split()
     for word in words:
+      # Bold text is enclosed in stars (*), italic in underscores (_).
       if word[0] == '*' and self.font_mode == 'R':
         self.set_font("Bold", self.normal_size)
         word = word[1:]
@@ -151,6 +172,7 @@ if args.normal_paragraph_spacing == None:
   args.normal_paragraph_spacing = args.normal_size
 if args.footnote_paragraph_spacing == None:
   args.footnote_paragraph_spacing = args.footnote_size
+# 'l', 'r', 'c', 'j' are short for: left, right, centre, justified
 if not args.normal_align in ('l', 'r', 'c', 'j'):
   warn("Invalid normal align mode.")
   exit(1)
