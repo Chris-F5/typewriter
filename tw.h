@@ -15,15 +15,6 @@ struct record {
   const char **fields;
 };
 
-struct stack {
-  int page_size, height;
-  struct stack_page {
-    int size, height;
-    struct stack_page *below;
-    char data[];
-  } *top_page;
-};
-
 struct font_info {
   int units_per_em;
   int x_min;
@@ -73,13 +64,6 @@ void begin_field(struct record *record);
 int parse_record(FILE *file, struct record *record);
 int find_field(const struct record *record, const char *field_str);
 void free_record(struct record *record);
-
-/* stack.c */
-void stack_init(struct stack *stack, int page_size);
-void *stack_allocate(struct stack *stack, int size);
-void stack_free(struct stack *stack, int height);
-void stack_push_pointer(struct stack *stack, void *ptr);
-void *stack_pop_pointer(struct stack *stack);
 
 /* ttf.c */
 int read_ttf(FILE *file, struct font_info *info);
