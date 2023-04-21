@@ -29,64 +29,131 @@ begin_field(struct record *record)
     + record->string.size;
 }
 
+enum ParseState {
+  PARSE_BEGIN,
+  PARSE_NORMAL_FIELD,
+  PARSE_NORMAL_FIELD_ESCAPE,
+  PARSE_QUOTED_FIELD,
+  PARSE_QUOTED_FIELD_ESCAPE,
+  PARSE_OUTSIDE_FIELD,
+  /* TERMINATING STATES */
+  PARSE_FINISH_RECORD,
+  PARSE_EOF,
+  PARSE_UNTERMINATED_STRING,
+  PARSE_UNTERMINATED_ESCAPE,
+};
+
 int
 parse_record(FILE *file, struct record *record)
 {
-  int c, in_field, in_string, escape_next;
-  in_field = 0;
-  in_string = 0;
-  escape_next = 0;
+  int c, state;
+  state = PARSE_BEGIN;
   record->string.size = 0;
   record->field_count = 0;
-  for (;;) {
+  while (state < PARSE_FINISH_RECORD) {
     c = fgetc(file);
-    if (c == EOF || (c == '\n' && record->field_count)) {
-      if (in_field)
+    switch (state) {
+    case PARSE_BEGIN:
+      if (c == EOF) {
+        state = PARSE_EOF;
+      } else if (c == ' ' || c == '\n') {
+        continue;
+      } else if (c == '"') {
+        state = PARSE_QUOTED_FIELD;
+        begin_field(record);
+      } else if (c == '\\') {
+        state = PARSE_NORMAL_FIELD_ESCAPE;
+        begin_field(record);
+      } else {
+        state = PARSE_NORMAL_FIELD;
+        begin_field(record);
+        dbuffer_putc(&record->string, (char)c);
+      }
+      break;
+    case PARSE_NORMAL_FIELD:
+      if (c == EOF) {
+        state = PARSE_EOF;
         dbuffer_putc(&record->string, '\0');
+      } else if (c == '\\') {
+        state = PARSE_NORMAL_FIELD_ESCAPE;
+      } else if (c == ' ') {
+        state = PARSE_OUTSIDE_FIELD;
+        dbuffer_putc(&record->string, '\0');
+      } else if (c == '\n') {
+        state = PARSE_FINISH_RECORD;
+        dbuffer_putc(&record->string, '\0');
+      } else {
+        dbuffer_putc(&record->string, (char)c);
+      }
+      break;
+    case PARSE_NORMAL_FIELD_ESCAPE:
+      if (c == EOF) {
+        state = PARSE_UNTERMINATED_ESCAPE;
+      } else {
+        state = PARSE_NORMAL_FIELD;
+        dbuffer_putc(&record->string, (char)c);
+      }
+      break;
+    case PARSE_QUOTED_FIELD:
+      if (c == EOF) {
+        state = PARSE_UNTERMINATED_STRING;
+      } else if (c == '\\') {
+        state = PARSE_QUOTED_FIELD_ESCAPE;
+      } else if (c == '"') {
+        state = PARSE_OUTSIDE_FIELD;
+        dbuffer_putc(&record->string, '\0');
+      } else {
+        dbuffer_putc(&record->string, (char)c);
+      }
+      break;
+    case PARSE_QUOTED_FIELD_ESCAPE:
+      if (c == EOF) {
+        state = PARSE_UNTERMINATED_ESCAPE;
+      } else {
+        state = PARSE_QUOTED_FIELD;
+        dbuffer_putc(&record->string, (char)c);
+      }
+      break;
+    case PARSE_OUTSIDE_FIELD:
+      if (c == EOF) {
+        state = PARSE_EOF;
+      } else if (c == '\n') {
+        state = PARSE_FINISH_RECORD;
+      } else if (c == ' ') {
+        continue;
+      } else if (c == '"') {
+        state = PARSE_QUOTED_FIELD;
+        begin_field(record);
+      } else if (c == '\\') {
+        state = PARSE_NORMAL_FIELD_ESCAPE;
+        begin_field(record);
+      } else {
+        state = PARSE_NORMAL_FIELD;
+        begin_field(record);
+        dbuffer_putc(&record->string, (char)c);
+      }
+      break;
+    default:
+      fprintf(stderr, "Unexpected state while parsing record.\n");
       break;
     }
-    if (!in_field && c != ' ' && c != '\n') {
-      /* Start field. */
-      in_field = 1;
-      begin_field(record);
-      if (c == '"')
-        in_string = 1;
-      else
-        dbuffer_putc(&record->string, (char)c);
-      continue;
-    }
-    if ((in_field && in_string && escape_next == 0 && c == '"')
-        || (in_field && !in_string && escape_next == 0 && c == ' ')) {
-      /* End field. */
-      in_field = 0;
-      in_string = 0;
-      dbuffer_putc(&record->string, '\0');
-      continue;
-    }
-    if (in_field && escape_next == 0 && c == '\\') {
-      /* Escape next character. */
-      escape_next = 1;
-      continue;
-    }
-    if (in_field) {
-      /* Add character to field. */
-      dbuffer_putc(&record->string, c);
-      escape_next = 0;
-      continue;
-    }
   }
-  if (escape_next) {
-    fprintf(stderr, "Failed to parse record: unterminated character escape.\n");
-    goto parse_error;
-  }
-  if (in_string) {
+  switch (state) {
+  case PARSE_UNTERMINATED_STRING:
     fprintf(stderr, "Failed to parse record: unterminated string.\n");
-    goto parse_error;
-  }
-  if (record->field_count == 0)
+    goto error;
+  case PARSE_UNTERMINATED_ESCAPE:
+    fprintf(stderr, "Failed to parse record: unterminated escape sequence.\n");
+    goto error;
+  case PARSE_EOF:
     return EOF;
-  return 0;
-parse_error:
+  case PARSE_FINISH_RECORD:
+    return 0;
+  default:
+    fprintf(stderr, "Unexpected terminating state while parsing record.\n");
+    goto error;
+  }
+error:
   record->field_count = 0;
   record->string.size = 0;
   return 1;
