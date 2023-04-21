@@ -37,12 +37,12 @@ class Graphic:
     fields = line.split()
     if len(fields) < 1:
       return False
-    return fields[0] == "START"
+    return fields[0] == "START" or fields[0] == '"START"'
   def is_end(line):
     fields = line.split()
     if len(fields) < 1:
       return False
-    return fields[0] == "END"
+    return fields[0] == "END" or fields[0] == '"END"'
 
 class Box:
   def __init__(self, height, graphic):
@@ -56,7 +56,6 @@ class Box:
     return True
   def print(self):
     print(self.graphic.string, end='')
-
 class Glue:
   def __init__(self, height):
     self.height = height
