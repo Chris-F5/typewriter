@@ -3,7 +3,7 @@ CFLAGS=-g -Wall
 
 all: tw line_break
 
-tw: tw.o utils.o dbuffer.o record.o ttf.o jpeg.o pdf.o print_pages.o
+tw: tw.o utils.o dbuffer.o record.o ttf.o jpeg.o pdf.o
 	$(CC) $^ -o $@
 
 line_break: line_break.o utils.o dbuffer.o record.o ttf.o
@@ -31,7 +31,4 @@ jpeg.o: jpeg.c tw.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 pdf.o: pdf.c tw.h
-	$(CC) $(CFLAGS) -c $< -o $@
-
-print_pages.o: print_pages.c tw.h
 	$(CC) $(CFLAGS) -c $< -o $@
