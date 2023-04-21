@@ -176,9 +176,6 @@ pending_footnote_gizmos = []
 pending_gizmos = {"normal": [], "footnote": []}
 current_flow = "normal"
 while fields := parse_record(sys.stdin):
-  for i in range(len(fields)):
-    if fields[i][0] == '"':
-      fields[i] = fields[i][1:-1]
   if fields[0] == "flow":
     if len(fields) != 2:
       warn("flow command expects one argument.")
