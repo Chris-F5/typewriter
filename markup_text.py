@@ -1,18 +1,7 @@
 #!/bin/python3
 
-import sys, subprocess, argparse
-
-def warn(msg):
-  print(msg, file=sys.stderr)
-
-def line_break(text, width, align):
-  process = subprocess.Popen(["line_break", "-" + align, "-w", str(width)],
-                             stdin=subprocess.PIPE,
-                             stdout=subprocess.PIPE)
-  text = bytes(text, "ascii")
-  process.stdin.write(text)
-  output, error = process.communicate()
-  return output.decode("ascii")
+import sys, argparse
+from utils import *
 
 class TextStream:
   def __init__(self, width, align, paragraph_spacing, line_spacing):
@@ -28,10 +17,7 @@ class TextStream:
     if not self.in_string:
       self.text += 'STRING "'
       self.in_string = True
-    string = string.replace('\\', '\\\\')
-    string = string.replace('"', '\\"')
-    string = string.replace('\n', '')
-    self.text += string
+    self.text += strip_string(string)
   def close_string(self):
     if self.in_string:
       self.text += '"\n'

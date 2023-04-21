@@ -1,6 +1,7 @@
 #!/bin/python3
 
 import sys, argparse
+from utils import *
 
 arg_parser = argparse.ArgumentParser()
 arg_parser.add_argument("-s", "--font_size", type=int, default=12)
@@ -19,11 +20,10 @@ lines = sys.stdin.readlines()
 i = 0
 for line in lines:
   i += 1
-  line = line.replace('\n', '')
   print("box {}".format(font_size))
   print("START TEXT")
-  print("FONT {} {}".format(font, font_size))
-  print('STRING "{}"'.format(line.replace('\\', '\\\\').replace('"', '\\"')))
+  print("FONT {} {}".format(strip_string(font), font_size))
+  print('STRING "{}"'.format(strip_string(line)))
   print("END")
   if i >= orphans and len(lines) - i >= widows:
     print("opt_break")

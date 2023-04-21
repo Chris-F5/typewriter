@@ -1,21 +1,7 @@
 #!/bin/python3
 
-import sys, subprocess, argparse, re
-
-def warn(msg):
-  print(msg, file=sys.stderr)
-
-def line_break(text, width, align):
-  process = subprocess.Popen(["line_break", "-" + align, "-w", str(width)],
-                             stdin=subprocess.PIPE,
-                             stdout=subprocess.PIPE)
-  text = bytes(text, "ascii")
-  process.stdin.write(text)
-  output, error = process.communicate()
-  return output.decode("ascii")
-
-def strip_string(string):
-  return string.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '')
+import sys, argparse, re
+from utils import *
 
 def next_line(file):
   while True:
@@ -190,11 +176,7 @@ pending_normal_gizmos = []
 pending_footnote_gizmos = []
 pending_gizmos = {"normal": [], "footnote": []}
 current_flow = "normal"
-while True:
-  line = next_line(sys.stdin)
-  if not line:
-    break
-  fields = re.findall(r'[^"\s]\S*|".*[^\\]"', line)
+while fields := parse_record(sys.stdin):
   for i in range(len(fields)):
     if fields[i][0] == '"':
       fields[i] = fields[i][1:-1]

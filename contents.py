@@ -1,29 +1,7 @@
 #!/bin/python3
 
-import sys, subprocess, re, argparse
-
-def warn(msg):
-  print(msg, file=sys.stderr)
-
-def line_break(text, width, align):
-  process = subprocess.Popen(["./line_break", "-" + align, "-w", str(width)],
-                             stdin=subprocess.PIPE,
-                             stdout=subprocess.PIPE)
-  text = bytes(text, "ascii")
-  process.stdin.write(text)
-  output, error = process.communicate()
-  return output.decode("ascii")
-
-def parse_record(line):
-  fields = re.findall(r'[^"\s]\S*|".*?[^\\]"', line)
-  for i in range(len(fields)):
-    if fields[i][0] == '"':
-      fields[i] = fields[i][1:-1]
-    fields[i] = fields[i].replace('\\"', '"')
-  return fields
-
-def strip_string(string):
-  return string.replace('\\', '\\\\').replace('"', '\\"').replace('\n', '')
+import sys, re, argparse
+from utils import *
 
 arg_parser = argparse.ArgumentParser()
 arg_parser.add_argument("-c", "--char_width", type=int, default=60)
@@ -33,8 +11,7 @@ args = arg_parser.parse_args()
 char_width = args.char_width
 font_size = args.font_size
 
-for line in sys.stdin:
-  fields = parse_record(line)
+while fields := parse_record(sys.stdin):
   if len(fields) != 2:
     warn("contents file record must have 2 fields")
     continue
