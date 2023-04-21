@@ -1,4 +1,4 @@
-Regular cmu.serif-roman.ttf
-Italic cmu.serif-italic.ttf
-Bold cmu.serif-bold.ttf
-Monospace cmu.typewriter-text-regular.ttf
+Regular ./fonts/cmu.serif-roman.ttf
+Italic ./fonts/cmu.serif-italic.ttf
+Bold ./fonts/cmu.serif-bold.ttf
+Monospace ./fonts/cmu.typewriter-text-regular.ttf
