@@ -1,10 +1,13 @@
 #!/bin/bash
 
+# Add project binaries to path.
+PATH=$PATH:..
+
 body_width=390
 new_page="echo 'glue 10000' ; echo 'opt_break'"
-markup_text="(./markup_text.py -w $body_width -s 10 -a j -A l ; echo 'glue 10')"
-markup_list="(./markup_raw.py -s 10 -f Regular ; echo 'glue 10')"
-markup_code="(./markup_raw.py -o 8 -w 4 -s 9; echo 'glue 10')"
+markup_text="(markup_text.py -w $body_width -s 10 -a j -A l ; echo 'glue 10')"
+markup_list="(markup_raw.py -s 10 -f Regular ; echo 'glue 10')"
+markup_code="(markup_raw.py -o 8 -w 4 -s 9; echo 'glue 10')"
 mark="printf 'mark \"%s\"\n'"
 
 cite_groff=1
@@ -16,7 +19,7 @@ cite_ttf_spec=6
 cite_pdf_spec=7
 cite_introduction_to_algorithms=8
 
-(bash | ./pager.py -n -c contents) > content_pages << END_CONTENT
+(bash | pager.py -n -c .contents) > .content_pages << END_CONTENT
 
 section_counter=0
 subsection_counter=0
@@ -28,7 +31,7 @@ function header {
   title="\$section_counter \$1"
   echo "new_page"
   echo "glue 60"
-  echo "\$title" | ./markup_text.py -w $body_width -s 26 -a l | sed 's/^opt_break$//'
+  echo "\$title" | markup_text.py -w $body_width -s 26 -a l | sed 's/^opt_break$//'
   $mark "\$title"
   echo "glue 16"
 }
@@ -37,7 +40,7 @@ function subheader {
   subsubsection_counter=0
   subsection_counter=\$((subsection_counter+1))
   title="  \$section_counter.\$subsection_counter \$1"
-  echo "\$title" | ./markup_text.py -w $body_width -s 16 -a l | sed 's/^opt_break$//'
+  echo "\$title" | markup_text.py -w $body_width -s 16 -a l | sed 's/^opt_break$//'
   $mark "\$title"
   echo "glue 5"
 }
@@ -45,7 +48,7 @@ function subheader {
 function subsubheader {
   subsubsection_counter=\$((subsubsection_counter+1))
   title=" \$section_counter.\$subsection_counter.\$subsubsection_counter \$1"
-  echo "\$title" | ./markup_text.py -w $body_width -s 14 -a l | sed 's/^opt_break$//'
+  echo "\$title" | markup_text.py -w $body_width -s 14 -a l | sed 's/^opt_break$//'
   echo "glue 4"
 }
 
@@ -53,7 +56,7 @@ header "Analysis" #############################################################
 
 subheader "Problem Statement" #################################################
 $markup_text << END_TEXT
-To create a document preparation capable of typesetting project reports.
+To create a document preparation system capable of typesetting project reports.
 END_TEXT
 
 subheader "Problem Background" ################################################
@@ -118,8 +121,7 @@ I read an online article about how browsers work [$cite_how_browsers_work] and
 a blog about building a browser engine [$cite_lets_build_a_browser_engine] to
 understand this layout process.
 The hierarchical DOM provides an alternative document content model to TeX's
-linear _gizmos._ Perhaps by understanding both, I will be able to combine the
-best of each in my system.
+linear _gizmos.
 END_TEXT
 
 subheader "Intended End-User" #################################################
@@ -292,7 +294,6 @@ confusing to read and appear cluttered.
 For my project, I have developed an alternative format which encodes a variable
 number of string fields on each line.
 This _'records'_ format is used frequently in the projects text streams.
-The parsing of _records_ is implemented in 'record.c'.
 
 Lines are separated by a single new line character (LF not CRLF).
 Empty lines and lines consisting of only spaces are ignored.
@@ -580,39 +581,246 @@ END_CODE
 
 subheader "Data Structures" ###################################################
 subsubheader "Dynamic Buffer"
+$markup_code << END_CODE
+struct dbuffer {
+  int size, allocated, increment;
+  char *data;
+};
+void dbuffer_init(struct dbuffer *buf, int initial, int increment);
+void dbuffer_putc(struct dbuffer *buf, char c);
+void dbuffer_printf(struct dbuffer *buf, const char *format, ...);
+void dbuffer_free(struct dbuffer *buf);
+END_CODE
+$markup_text << END_TEXT
+This structure is usefull in string building.
+_data_ points to a region of memory allocated on the heap _allocated_ bytes in
+size.
+_size_ measures how many bytes of _data_ are being used.
+As data is added to the buffer, if more than _allocated_ bytes are needed then
+more bytes are allocated in increments of _increment._
+_dbuffer_printf_ and _dbuffer_putc_ functions append new characters to the
+dynamic buffer.
+END_TEXT
+
 subsubheader "Record"
+$markup_code << END_CODE
+struct record {
+  struct dbuffer string;
+  int field_count;
+  int fields_allocated;
+  const char **fields;
+};
+void init_record(struct record *record);
+void begin_field(struct record *record);
+int parse_record(FILE *file, struct record *record);
+int find_field(const struct record *record, const char *field_str);
+void free_record(struct record *record);
+END_CODE
+$markup_text << END_TEXT
+The record structure stores a variable number of strings which are referred to
+as 'fields'.
+_strings_ is a dynamic buffer that contains each field separated and ended with
+null characters.
+_fields_ is a pointer to a heap-allocated array of pointers to the first byte
+of each field in _strings._
+_fields_ has been allocated _allocated_ bytes on the heap, this amount may
+increase as more fields are added.
+There are _field_count_ valid and unique entries in _fields._
+END_TEXT
+
 subsubheader "Font Info"
+$markup_code << END_CODE
+struct font_info {
+  int units_per_em;
+  int x_min;
+  int y_min;
+  int x_max;
+  int y_max;
+  int long_hor_metrics_count;
+  int cmap[256];
+  int char_widths[256];
+};
+int read_ttf(FILE *file, struct font_info *info);
+END_CODE
+$markup_text << END_TEXT
+_font_info_ contains the data parsed from a true type font file.
+Character widths are measured by thousandths of points the character would
+occupy if drawn with font size 1.
+END_TEXT
+
 subsubheader "Line Break Gizmos"
+xref_line_break_gizmos="\$section_counter.\$subsection_counter.\$subsubsection_counter"
+$markup_code << END_CODE
+struct gizmo {
+  int type;
+  struct gizmo *next;
+  char _[];
+};
+
+struct text_gizmo {
+  int type; /* GIZMO_TEXT */
+  struct gizmo *next;
+  int width;
+  struct style style;
+  char string[];
+};
+
+struct break_gizmo {
+  int type; /* GIZMO_BREAK */
+  struct gizmo *next;
+  int force_break, total_penalty, spacing, selected;
+  struct break_gizmo *best_source;
+  struct style style;
+  int no_break_width, at_break_width;
+  char *no_break, *at_break;
+  char strings[];
+};
+
+struct mark_gizmo {
+  int type; /* GIZMO_MARK */
+  struct gizmo *next;
+  char string[];
+};
+END_CODE
+
+$markup_text << END_TEXT
+The gizmo linked list is the data structure used in the line breaking
+algorithm.
+A _gizmo_ is a variable-size region of heap-allocated memory.
+The first _sizeof(int)_ bytes are used to identify the type of gizmo: text
+gizmo, break gizmo or mark gizmo.
+The next _sizeof(char *)_ bytes are a pointer to the next gizmo in the list.
+The meaning of subsequent bytes is dependent on the type of the gizmo.
+Each gizmo type ends with a variable number of characters which may be used as
+a place to store null-terminated strings which can be pointed to in the gizmo.
+In the case of the _text_gizmo,_ and _mark_gizmo_ the first null-terminated
+string is the text of concern.
+The break gizmo represents a node in the line breaking algorithm, it therefore
+contains a number of variables relevant in the algorithm.
+All gizmo widths are measured in thousandths of points.
+END_TEXT
 
 subheader "Key Algorithms" ####################################################
-subheader "Line Breaker"
-subheader "Page Breaker"
-subheader "Record Parser"
+subsubheader "Line Breaker"
+$markup_text << END_TEXT
+The line breaking algorithm used in this project is partially based of that
+presented in Donald E Knuth's 'Breaking Paragraphs into Lines (1981)'
+[$cite_breaking_paragraphs_into_lines].
 
-subheader "Example Documents" #################################################
+Input text is modelled by a gizmo list defined in section
+\$xref_line_break_gizmos.
+Consider an directed acyclic graph (DAG) where each vertex is a potential line
+break and each edge a feasible line of text.
+The source vertex is the hypothetical line break preceding the body of text and
+end sink vertex represents the line break after the last item of text.
+An edge is feasible only if the sum of its text width is less than the
+maximum line width.
+Edges are weighted by the difference between the line's text width and the
+maximum line width.
+The problem of finding optimal line breaks (that minimises trailing white
+space) is equivalent to finding the shortest path through this graph from the
+source to the sink.
+Therefore, to find optimal line breaks, the algorithm must identify feasible
+lines, evaluate the weight of these lines and find the shortest path through
+the graph.
+These three tasks can be achieved in a single pass.
+END_TEXT
+
+echo "box 0"
+echo "START GRAPHIC"
+echo "MOVE 206 -235"
+echo "IMAGE 184 235 dag.jpeg"
+echo "END"
+(markup_text.py -w 200 -s 10 -a j -A l | sed 's/^opt_break$//') << END_SIDE
+The shortest path of a DAG can be computed by relaxing each vertex in order of
+a topological sort [$cite_introduction_to_algorithms].
+As each edge can only connect an earlier line break to a later one, and because
+line breaks in the gizmo list appear in text order, the break gizmos are
+already necessarily in topological order.
+This means that line breaks can be relaxed in the order they appear in the
+gizmo list.
+Relaxing a break involves finding each feasible line that may follow this
+break, computing the weight of the line and if the destination break does not
+claim a shorter path, then update the destination breaks shortest path claim to
+that which ends with this edge.
+
+The diagram *(right)* illustrates the solved graph for the text
+"Hello world! I am text." with a mono-spaced 1 point font fitting in lines of
+max width 12.
+Edges are labeled with their weight and the text contained in the line they
+represent.
+As you can see, the shortest route from top to bottom is through,
+"Hello world!" and "I am text." with a total weight of 2.
+This means that the optimal line break set is the single break after "world!".
+END_SIDE
+echo "glue 10"
+
+subsubheader "Page Breaker"
+$markup_text << END_TEXT
+The purpose of the page breaker is to divide _content_ into _pages._
+Boxes and glue (both are a type of 'gizmo') are collected sequentially from the
+input _content_ into a normal bin and into a footnote bin.
+The chosen bin depends on the argument of the most recent flow command.
+When an optional page break or new page command is reached, if the current page
+has sufficient space to fit the pending gizmos in both bins, then they are
+added to the current page.
+Otherwise, the pending gizmos are added to a new page which becomes the
+current.
+After reading a new page command and fitting the pending gizmos, a new page is
+added.
+When a mark command is encountered, the page number of the current page is
+added to the contents file.
+
+To determine weather a set of gizmos fits on a page, the height of the content
+of each bin is calculated by summing the height of all gizmos in that bin
+excluding trailing glue gizmos.
+If the total height is smaller than the height of the page's max content height
+(as calculated from the page height and vertical margins) then the gizmos fit.
+END_TEXT
+
+subsubheader "Record Parser"
+($markup_text | sed 's/^opt_break$//') << END_TEXT
+The python implantation of record parsing uses the following regular
+expression:
+END_TEXT
+$markup_code << END_CODE
+[^"\s]\S*|".*?[^\\]
+END_CODE
+$markup_text << END_TEXT
+However, I take more pride in my C code and so in the name of efficiency will
+be writing a custom parser not based of regex.
+Characters are to be parsed sequentially using a state machine of 5 states:
+
+END_TEXT
+
+subheader "Example Document" ##################################################
 
 header "Technical Solution" ###################################################
 
+header "Testing" ##############################################################
+
+header "Evaluation" ###########################################################
+
 END_CONTENT
 
-(sh | ./tw) << END_DOCUMENT
+(sh | tw -o nea.pdf) << END_DOCUMENT
 
-(sh | ./pager.py) << END_COVER
+(sh | pager.py) << END_COVER
 echo "glue 180"
-echo "NEA Report" | ./markup_text.py -w $body_width -a c -s 24
+echo "NEA Report" | markup_text.py -w $body_width -a c -s 24
 echo "glue 4"
-echo "Christopher Lang 1132" | ./markup_text.py -w $body_width -s 12 -a c
-echo "Typesetting System" | ./markup_text.py -w $body_width -s 12 -a c
-echo "2022-2023" | ./markup_text.py -w $body_width -s 12 -a c
+echo "Christopher Lang 1132" | markup_text.py -w $body_width -s 12 -a c
+echo "Typesetting System" | markup_text.py -w $body_width -s 12 -a c
+echo "2022-2023" | markup_text.py -w $body_width -s 12 -a c
 END_COVER
 
-(sh | ./pager.py) << END_CONTENTS_PAGE
-echo "Contents" | ./markup_text.py -w $body_width -s 26 -a l
+(sh | pager.py) << END_CONTENTS_PAGE
+echo "Contents" | markup_text.py -w $body_width -s 26 -a l
 echo "glue 20"
 # cmu monospace font width is 524
-./contents.py -c 62 < contents
+contents.py -c 62 < .contents
 END_CONTENTS_PAGE
 
-cat content_pages
+cat .content_pages
 
 END_DOCUMENT

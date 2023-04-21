@@ -6,7 +6,7 @@ def warn(msg):
   print(msg, file=sys.stderr)
 
 def line_break(text, width, align):
-  process = subprocess.Popen(["./line_break", "-" + align, "-w", str(width)],
+  process = subprocess.Popen(["line_break", "-" + align, "-w", str(width)],
                              stdin=subprocess.PIPE,
                              stdout=subprocess.PIPE)
   text = bytes(text, "ascii")
