@@ -5,6 +5,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "tw.h"
 
@@ -322,10 +323,31 @@ print_pages(FILE *pages_file, FILE *typeface_file, FILE *pdf_file)
 int
 main(int argc, char **argv)
 {
+  int opt;
+  const char *output_file_name;
   FILE *pages_file, *typeface_file, *pdf_file;
+  output_file_name = "./output.pdf";
+  while ( (opt = getopt(argc, argv, "o:")) != -1) {
+    switch (opt) {
+      case 'o':
+        output_file_name = optarg;
+        break;
+      default:
+        fprintf(stderr, "Usage: %s [-o OUTPUT_FILE]\n", argv[0]);
+        return 1;
+    }
+  }
   pages_file = stdin;
   typeface_file = fopen("./typeface", "r");
-  pdf_file = fopen("./output.pdf", "w");
+  pdf_file = fopen(output_file_name, "w");
+  if (typeface_file == NULL) {
+    fprintf(stderr, "tw: Failed to open typeface file.\n");
+    return 1;
+  }
+  if (pdf_file == NULL) {
+    fprintf(stderr, "tw: Failed to open output file '%s'.\n", output_file_name);
+    return 1;
+  }
   print_pages(pages_file, typeface_file, pdf_file);
   fclose(pages_file);
   fclose(typeface_file);
