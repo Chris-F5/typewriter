@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Change into directory of this binary.
+cd $(dirname $0)
+
 # Add project binaries to path.
 PATH=$PATH:..
 
@@ -729,7 +732,7 @@ END_TEXT
 echo "box 0"
 echo "START GRAPHIC"
 echo "MOVE 206 -235"
-echo "IMAGE 184 235 dag.jpeg"
+echo "IMAGE 184 235 dag.jpg"
 echo "END"
 (markup_text.py -w 200 -s 10 -a j -A l | sed 's/^opt_break$//') << END_SIDE
 The shortest path of a DAG can be computed by relaxing each vertex in order of
@@ -788,12 +791,97 @@ $markup_code << END_CODE
 END_CODE
 $markup_text << END_TEXT
 However, I take more pride in my C code and so in the name of efficiency will
-be writing a custom parser not based of regex.
-Characters are to be parsed sequentially using a state machine of 5 states:
-
+be writing a custom parser.
+Characters are to be parsed sequentially using the following state machine of
+10 states.
+END_TEXT
+echo "box 198"
+echo "START GRAPHIC"
+echo "IMAGE 390 198 state_machine.jpg"
+echo "END"
+$markup_text << END_TEXT
+Parsing begins in the 'Start' state. 'EOF' indicated the End Of File.
+When a field is started, a pointer to the current end of the _string_ buffer
+is added to the _fields_ array.
+When a character is added to a field, the character is appended to _string._
+When a field is ended, a zero byte is appended to _string._
+When a terminating or error state is reached, parsing stops immediately.
+The result of parsing is fields separated and ended in zero bytes in the
+_string_ dynamic buffer and pointers to the beginning of each field in the
+_fields_ array.
 END_TEXT
 
 subheader "Example Document" ##################################################
+$markup_text << END_TEXT
+This section will consider the following shell command and explain how it
+should work.
+END_TEXT
+
+$markup_code << END_CODE
+echo "Hello world" | markup_text.py -w 60 | pager.py | tw
+END_CODE
+
+$markup_text << END_TEXT
+First, "Hello world" is piped into markup_text.py with content width set to 60
+points.
+The string will be parsed and converted into a _text_specification._
+markup_text.py will automatically pass this to a new instance of the line_break
+program.
+The following is the _text_specification._
+END_TEXT
+
+$markup_code << END_CODE
+FONT Regular 12
+STRING "Hello"
+OPTBREAK " " "" 0
+STRING "world"
+END_CODE
+
+$markup_text << END_TEXT
+The line_break program will respond with the following _content_ which
+markup_text.py will output.
+END_TEXT
+
+$markup_code << END_CODE
+box 12
+START TEXT
+FONT Regular 12
+STRING "Hello"
+END
+opt_break
+box 12
+START TEXT
+FONT Regular 12
+STRING "world"
+END
+opt_break
+END_CODE
+
+$markup_text << END_TEXT
+pager.py will interpret this _content,_ and split it into _pages_ and output
+the following.
+END_TEXT
+
+$markup_code << END_CODE
+START PAGE
+MOVE 102 705
+START TEXT
+FONT Regular 12
+STRING "Hello"
+END
+MOVE 102 693
+START TEXT
+FONT Regular 12
+STRING "world"
+END
+END
+END_CODE
+
+$markup_text << END_TEXT
+Finally, tw reads the _pages_ and writes the pdf that is described.
+In this case, a single page with "Hello" on the first line and "world" on the
+second.
+END_TEXT
 
 header "Technical Solution" ###################################################
 
