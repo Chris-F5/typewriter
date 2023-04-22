@@ -3,15 +3,18 @@
  * See LICENSE for license details.
  */
 
+/* Dynamic Buffer */
 struct dbuffer {
   int size, allocated, increment;
   char *data;
 };
 
 struct record {
+  /* _string_ is for zero byte seperated and ended field strings. */
   struct dbuffer string;
   int field_count;
   int fields_allocated;
+  /* _fields_ is an array of pointers to each field string in _string_. */
   const char **fields;
 };
 
@@ -32,7 +35,9 @@ struct jpeg_info {
 };
 
 struct pdf_resources {
+  /* Each field in _fonts_used_ is a font name that is used in the PDF. */
   struct record fonts_used;
+  /* Each field in _image_ is a image file name that is used in the PDF. */
   struct record images;
 };
 
