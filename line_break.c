@@ -119,7 +119,7 @@ open_typeface(FILE *typeface_file)
           record.fields[1], strerror(errno));
       continue;
     }
-    *next_font = malloc(sizeof(struct typeface));
+    *next_font = xmalloc(sizeof(struct typeface));
     strcpy((*next_font)->font_name, record.fields[0]);
     if (read_ttf(font_file, &(*next_font)->font_info)) {
       fprintf(stderr, "Failed to parse ttf file: '%s'\n", record.fields[1]);
@@ -192,7 +192,7 @@ parse_gizmos(FILE *file, const struct typeface *typeface)
             "Text STRING command can't be called without FONT set.\n");
         continue;
       }
-      *next_gizmo = malloc(sizeof(struct text_gizmo)
+      *next_gizmo = xmalloc(sizeof(struct text_gizmo)
           + strlen(record.fields[1]) + 1);
       (*next_gizmo)->type = GIZMO_TEXT;
       (*next_gizmo)->next = NULL;
@@ -234,7 +234,7 @@ parse_gizmos(FILE *file, const struct typeface *typeface)
             "Text OPTBREAK command's 3rd option must be integer.\n");
         continue;
       }
-      *next_gizmo = malloc(sizeof(struct break_gizmo)
+      *next_gizmo = xmalloc(sizeof(struct break_gizmo)
           + strlen(record.fields[1])
           + strlen(record.fields[2]) + 2);
       (*next_gizmo)->type = GIZMO_BREAK;
@@ -270,7 +270,7 @@ parse_gizmos(FILE *file, const struct typeface *typeface)
         fprintf(stderr, "Text BREAK command's 1st option must be integer.\n");
         continue;
       }
-      *next_gizmo = malloc(sizeof(struct break_gizmo) + 1);
+      *next_gizmo = xmalloc(sizeof(struct break_gizmo) + 1);
       (*next_gizmo)->type = GIZMO_BREAK;
       (*next_gizmo)->next = NULL;
       ((struct break_gizmo *)*next_gizmo)->spacing = arg1;
@@ -293,7 +293,7 @@ parse_gizmos(FILE *file, const struct typeface *typeface)
         fprintf(stderr, "Text MARK command must have 1 option.\n");
         continue;
       }
-      *next_gizmo = malloc(sizeof(struct mark_gizmo)
+      *next_gizmo = xmalloc(sizeof(struct mark_gizmo)
           + strlen(record.fields[1]) + 1);
       (*next_gizmo)->type = GIZMO_MARK;
       (*next_gizmo)->next = NULL;
@@ -302,7 +302,7 @@ parse_gizmos(FILE *file, const struct typeface *typeface)
       continue;
     }
   }
-  *next_gizmo = malloc(sizeof(struct break_gizmo) + 1);
+  *next_gizmo = xmalloc(sizeof(struct break_gizmo) + 1);
   (*next_gizmo)->type = GIZMO_BREAK;
   (*next_gizmo)->next = NULL;
   ((struct break_gizmo *)*next_gizmo)->spacing = 0;
