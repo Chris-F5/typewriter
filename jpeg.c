@@ -15,7 +15,6 @@ read_uint16(FILE *file)
 {
   uint16_t n;
   n = 0;
-  /* only words on little-edian machines */
   fread(1 + (char *)&n, 1, 1, file);
   fread((char *)&n, 1, 1, file);
   return n;
