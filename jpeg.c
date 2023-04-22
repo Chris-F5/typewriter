@@ -3,6 +3,11 @@
  * See LICENSE for license details.
  */
 
+/*
+ * This file parses JPEG files. See 'https://en.wikipedia.org/wiki/JPEG' for 
+ * file format information.
+ */
+
 #include <stdio.h>
 #include <stdint.h>
 #include "tw.h"
@@ -10,12 +15,12 @@
 static uint16_t read_uint16(FILE *file);
 static void skip_segment_payload(FILE *file);
 
+/* Read big-endian 16-bit unsigned integer from file. */
 static uint16_t
 read_uint16(FILE *file)
 {
   uint16_t n;
   n = 0;
-  /* only words on little-edian machines */
   fread(1 + (char *)&n, 1, 1, file);
   fread((char *)&n, 1, 1, file);
   return n;

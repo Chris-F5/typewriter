@@ -25,6 +25,7 @@ enum gizmo_type {
   GIZMO_MARK,
 };
 
+/* Linked list, each struct maps one _font_name_ to one _font_info_. */
 struct typeface {
   char font_name[256];
   struct font_info font_info;
@@ -36,6 +37,7 @@ struct style {
   char font_name[256];
 };
 
+/* Polymorphic linked list. _type_ defines the meaning of _char _[]_ bytes. */
 struct gizmo {
   int type;
   struct gizmo *next;
@@ -57,7 +59,7 @@ struct break_gizmo {
   struct break_gizmo *best_source;
   struct style style;
   int no_break_width, at_break_width;
-  char *no_break, *at_break;
+  char *no_break, *at_break; /* Pointers to inside _strings_. */
   char strings[];
 };
 
@@ -81,6 +83,9 @@ static void print_text(struct dbuffer *buffer, struct style *style,
 static void print_gizmos(FILE *output, struct gizmo *gizmo, int line_width,
     int align);
 
+/* 
+ * Parse the _typeface_file_ and return a linked list of fonts in the typeface.
+ */
 static struct typeface *
 open_typeface(FILE *typeface_file)
 {
@@ -94,9 +99,9 @@ open_typeface(FILE *typeface_file)
   init_record(&record);
   for (;;) {
     parse_result = parse_record(typeface_file, &record);
-    if (parse_result == EOF)
+    if (parse_result == EOF) /* Reached end of file. */
       break;
-    if (parse_result)
+    if (parse_result) /* If failed to parse this record then skip it. */
       continue;
     if (record.field_count != 2) {
       fprintf(stderr, "Typeface records must have exactly 2 fields.");
@@ -144,6 +149,10 @@ free_typeface(struct typeface *typeface)
   }
 }
 
+/*
+ * Compute the width of _string_ in _style_ with _typeface_ measured in
+ * thousandths of points.
+ */
 static int
 get_text_width(const char *string, const struct style *style,
     const struct typeface *typeface)
@@ -163,6 +172,10 @@ get_text_width(const char *string, const struct style *style,
   return width * style->font_size;
 }
 
+/*
+ * Parse text gizmos from the text specification _file_ and return them as a
+ * linked list.
+ */
 static struct gizmo *
 parse_gizmos(FILE *file, const struct typeface *typeface)
 {
@@ -180,9 +193,10 @@ parse_gizmos(FILE *file, const struct typeface *typeface)
     parse_result = parse_record(file, &record);
     if (parse_result == EOF)
       break;
-    if (parse_result)
+    if (parse_result) /* If failed to parse record then skip it. */
       continue;
     if (strcmp(record.fields[0], "STRING") == 0) {
+      /* STRING [STRING] */
       if (record.field_count != 2) {
         fprintf(stderr, "Text STRING command must have 1 option.\n");
         continue;
@@ -204,6 +218,7 @@ parse_gizmos(FILE *file, const struct typeface *typeface)
       continue;
     }
     if (strcmp(record.fields[0], "FONT") == 0) {
+      /* FONT [FONT_NAME] [FONT_SIZE] */
       if (record.field_count != 3) {
         fprintf(stderr, "Text FONT command must have 2 options.\n");
         continue;
@@ -225,6 +240,7 @@ parse_gizmos(FILE *file, const struct typeface *typeface)
       continue;
     }
     if (strcmp(record.fields[0], "OPTBREAK") == 0) {
+      /* OPTBREAK [NO_BREAK_STRING] [AT_BREAK_STRING] [SPACING] */
       if (record.field_count != 4) {
         fprintf(stderr, "Text OPTBREAK command must have 3 options.\n");
         continue;
@@ -262,6 +278,7 @@ parse_gizmos(FILE *file, const struct typeface *typeface)
       continue;
     }
     if (strcmp(record.fields[0], "BREAK") == 0) {
+      /* BREAK [SPACING] */
       if (record.field_count != 2) {
         fprintf(stderr, "Text BREAK command must take 1 option.\n");
         continue;
@@ -289,6 +306,7 @@ parse_gizmos(FILE *file, const struct typeface *typeface)
       continue;
     }
     if (strcmp(record.fields[0], "MARK") == 0) {
+      /* MARK [MARK_STRING] */
       if (record.field_count != 2) {
         fprintf(stderr, "Text MARK command must have 1 option.\n");
         continue;
@@ -302,6 +320,7 @@ parse_gizmos(FILE *file, const struct typeface *typeface)
       continue;
     }
   }
+  /* A body of text must end in a forced break (the sink of the graph). */
   *next_gizmo = malloc(sizeof(struct break_gizmo) + 1);
   (*next_gizmo)->type = GIZMO_BREAK;
   (*next_gizmo)->next = NULL;
@@ -332,6 +351,7 @@ free_gizmos(struct gizmo *gizmo)
   }
 }
 
+/* Relax the edges of the _source_ node. */
 static void
 consider_breaks(struct gizmo *gizmo, int source_penalty,
     struct break_gizmo *source, int line_width)
@@ -346,6 +366,7 @@ consider_breaks(struct gizmo *gizmo, int source_penalty,
       break;
     case GIZMO_BREAK:
       break_gizmo = (struct break_gizmo *)gizmo;
+      /* If feasible line. */
       if (width + break_gizmo->at_break_width <= line_width) {
         penalty = (line_width - width - break_gizmo->at_break_width) / 1000;
         if (break_gizmo->force_break)
@@ -356,6 +377,7 @@ consider_breaks(struct gizmo *gizmo, int source_penalty,
         }
       }
       width += break_gizmo->no_break_width;
+      /* If all subsequent lines will not be feasible then stop. */
       if (width > line_width)
         goto stop;
       if (width && break_gizmo->force_break)
@@ -366,22 +388,30 @@ consider_breaks(struct gizmo *gizmo, int source_penalty,
 stop:
 }
 
+/* Find the optimal breaks in the linked list starting with _gizmo_. */
 static void
 optimise_breaks(struct gizmo *gizmo, int line_width)
 {
   struct break_gizmo *last_break;
   last_break = NULL;
+  /* Relax the hypothetical leading break node. */
   consider_breaks(gizmo, 0, NULL, line_width);
+  /* Relax every subsequent break node in topological order. */
   for (; gizmo; gizmo = gizmo->next)
     if (gizmo->type == GIZMO_BREAK) {
       last_break = (struct break_gizmo *)gizmo;
       consider_breaks(gizmo->next, last_break->total_penalty, last_break,
           line_width);
     }
+  /* Backtrack through the graph to set _selected_ to 1 on all chosen breaks. */
   for (; last_break; last_break = last_break->best_source)
     last_break->selected = 1;
 }
 
+/*
+ * Add new _string_ with _new_style_ to _buffer_'s _pages_ text mode content.
+ * _style_ is updated to match the font state of the text mode content.
+ */
 static void
 print_text(struct dbuffer *buffer, struct style *style,
     const struct style *new_style, const char *string, int *spaces)
@@ -409,6 +439,7 @@ print_text(struct dbuffer *buffer, struct style *style,
   dbuffer_printf(buffer, "\"\n");
 }
 
+/* Using the _selected_ break gizmos, write _content_ to _output_. */
 static void
 print_gizmos(FILE *output, struct gizmo *gizmo, int line_width, int align)
 {
@@ -424,7 +455,9 @@ print_gizmos(FILE *output, struct gizmo *gizmo, int line_width, int align)
   spaces = 0;
   style.font_name[0] = '\0';
   style.font_size = 0;
+  /* _line_ is the text mode _pages_ content for this line. */
   dbuffer_init(&line, 1024 * 4, 1024 * 4);
+  /* _line_marks_ are newline separated marks that appear on this line. */
   dbuffer_init(&line_marks, 1024, 1024);
   line_marks.data[0] = '\0';
   for (; gizmo; gizmo = gizmo->next) {
@@ -446,12 +479,20 @@ print_gizmos(FILE *output, struct gizmo *gizmo, int line_width, int align)
       if (break_gizmo->style.font_size > height)
         height = break_gizmo->style.font_size;
       if (break_gizmo->selected) {
+        /* Line break occurs here so write and reset the line. */
         width += break_gizmo->at_break_width;
         print_text(&line, &style, &break_gizmo->style, break_gizmo->at_break,
             &spaces);
+        /* If line not empty then write the line to _output_. */
         if (line.size) {
           dbuffer_putc(&line, '\0');
           fprintf(output, "box %d\n", height);
+          /*
+           * Some align modes need the text to be horizontally shifted on the
+           * page. To do this, content enters graphic mode with START GRAPHIC
+           * and moves to the right with MOVE. Remember to end the graphic
+           * mode after exiting text mode.
+           */
           if (align == ALIGN_CENTRE) {
             fprintf(output, "START GRAPHIC\n");
             fprintf(output, "MOVE %d 0\n", (line_width - width) / 2000);
@@ -465,17 +506,19 @@ print_gizmos(FILE *output, struct gizmo *gizmo, int line_width, int align)
           }
           fprintf(output, "%s", line.data);
           fprintf(output, "END\n");
+          /* End the additional graphic mode. */
           if (align == ALIGN_CENTRE || align == ALIGN_RIGHT) {
             fprintf(output, "END\n");
           }
         }
         fprintf(output, line_marks.data);
-        line_marks.size = 0;
-        line_marks.data[0] = '\0';
         if (break_gizmo->spacing
             && (break_gizmo->next == NULL || break_gizmo->next->next))
           fprintf(output, "glue %d\n", break_gizmo->spacing);
         fprintf(output, "opt_break\n");
+        /* Reset the line. */
+        line_marks.size = 0;
+        line_marks.data[0] = '\0';
         height = 0;
         width = 0;
         spaces = 0;

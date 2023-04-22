@@ -9,6 +9,7 @@
 
 #include "tw.h"
 
+/* A page's entire text content and its current state. */
 struct text_content {
   int x, y, font_size, word_spacing;
   struct dbuffer buffer;
@@ -26,8 +27,15 @@ static int parse_graphic(FILE *input, int origin_x, int origin_y,
     struct text_content *text_content, struct dbuffer *graphic_content,
     struct pdf_resources *resources);
 
+/* 
+ * Records are parsed in multiple functions, in order to avoid reallocating
+ * record memory each time, _record_ is kept as a static global variable.
+ * It is reset before each use so its persistent state does not matter.
+ * Use of record is not thread-safe.
+ */
 static struct record record;
 
+/* Add a page to _pdf_file_ with _text_content_ and _graphic_content_. */
 static void
 add_page(FILE *pdf_file, int obj_parent, struct pdf_xref_table *xref,
     struct pdf_page_list *page_list, struct dbuffer *text_content,
@@ -38,7 +46,9 @@ add_page(FILE *pdf_file, int obj_parent, struct pdf_xref_table *xref,
   obj_content = allocate_pdf_obj(xref);
   obj_page = allocate_pdf_obj(xref);
 
+  /* ET is the PDF control sequence for ending text content. */
   dbuffer_printf(text_content, "ET\n");
+  /* Write a PDF stream object containing the page content. */
   length = text_content->size + graphic_content->size;
   pdf_start_indirect_obj(pdf_file, xref, obj_content);
   fprintf(pdf_file, "<< /Length %ld >> stream\n", length);
@@ -47,13 +57,19 @@ add_page(FILE *pdf_file, int obj_parent, struct pdf_xref_table *xref,
   fprintf(pdf_file, "\nendstream\n");
   pdf_end_indirect_obj(pdf_file);
 
+  /*
+   * The PDF page object holds a reference to the PDF page content stream
+   * object.
+   */
   pdf_start_indirect_obj(pdf_file, xref, obj_page);
   pdf_write_page(pdf_file, obj_parent, obj_content);
   pdf_end_indirect_obj(pdf_file);
 
+  /* Save a reference to the PDF page object. */
   add_pdf_page(page_list, obj_page);
 }
 
+/* Write a PDF specification compliant string to _buffer_. */
 static void
 write_pdf_escaped_string(struct dbuffer *buffer, const char *string)
 {
@@ -72,6 +88,7 @@ write_pdf_escaped_string(struct dbuffer *buffer, const char *string)
   dbuffer_putc(buffer, ')');
 }
 
+/* Parse text mode _pages_ content. */
 static int
 parse_text(FILE *input, int x, int y, struct text_content *text_content,
     struct pdf_resources *resources)
@@ -81,6 +98,7 @@ parse_text(FILE *input, int x, int y, struct text_content *text_content,
   font_size = 0;
   font_name[0] = '\0';
   word_spacing = 0;
+  /* Set the text transformation matrix to the (x,y) transformation. */
   dbuffer_printf(&text_content->buffer, "1 0 0 1 %d %d Tm", x, y);
   for (;;) {
     parse_result = parse_record(input, &record);
@@ -88,11 +106,13 @@ parse_text(FILE *input, int x, int y, struct text_content *text_content,
       fprintf(stderr, "Text not ended before end of file.\n");
       return 1;
     }
-    if (parse_result)
+    if (parse_result) /* If failed to parse record then skip it. */
       continue;
     if (strcmp(record.fields[0], "END") == 0)
+      /* Exit text mode. */
       break;
     if (strcmp(record.fields[0], "FONT") == 0) {
+      /* FONT [FONT_NAME] [FONT_SIZE] */
       if (record.field_count != 3) {
         fprintf(stderr, "Text FONT command must take 2 arguments.\n");
         continue;
@@ -116,6 +136,7 @@ parse_text(FILE *input, int x, int y, struct text_content *text_content,
       continue;
     }
     if (strcmp(record.fields[0], "SPACE") == 0) {
+      /* SPACE [WORD_SPACING] */
       if (record.field_count != 2) {
         fprintf(stderr, "Text SPACE command must take 1 arguments.\n");
         continue;
@@ -128,6 +149,7 @@ parse_text(FILE *input, int x, int y, struct text_content *text_content,
       continue;
     }
     if (strcmp(record.fields[0], "STRING") == 0) {
+      /* STRING [STRING] */
       if (record.field_count != 2) {
         fprintf(stderr, "Text STRING command must take 1 argument.\n");
         continue;
@@ -159,6 +181,7 @@ parse_text(FILE *input, int x, int y, struct text_content *text_content,
   return 0;
 }
 
+/* Parse graphic mode _pages_ content. */
 static int
 parse_graphic(FILE *input, int origin_x, int origin_y,
     struct text_content *text_content, struct dbuffer *graphic_content,
@@ -173,11 +196,13 @@ parse_graphic(FILE *input, int origin_x, int origin_y,
       fprintf(stderr, "Graphic not ended before end of file.\n");
       return 1;
     }
-    if (parse_result)
+    if (parse_result) /* If failed to parse record then skip it. */
       continue;
     if (strcmp(record.fields[0], "END") == 0)
+      /* Exit graphic mode. */
       break;
     if (strcmp(record.fields[0], "MOVE") == 0) {
+      /* MOVE [X_OFFSET] [Y_OFFSET] */
       if (record.field_count != 3) {
         fprintf(stderr, "Graphic MOVE command must take 2 arguments.\n");
         continue;
@@ -192,6 +217,8 @@ parse_graphic(FILE *input, int origin_x, int origin_y,
       continue;
     }
     if (strcmp(record.fields[0], "START") == 0) {
+      /* START [GRAPHIC/TEXT] */
+      /* A graphic may contain text content or another graphic. */
       if (record.field_count != 2) {
         fprintf(stderr, "START command must take one argument.\n");
         return 1;
@@ -212,6 +239,7 @@ parse_graphic(FILE *input, int origin_x, int origin_y,
       return 1;
     }
     if (strcmp(record.fields[0], "IMAGE") == 0) {
+      /* IMAGE [WIDTH] [HEIGHT] [IMAGE_FILE_NAME] */
       if (record.field_count != 4) {
         fprintf(stderr, "IMAGE command must take 3 arguments.\n");
         continue;
@@ -223,10 +251,13 @@ parse_graphic(FILE *input, int origin_x, int origin_y,
         continue;
       }
       image_id = include_image_resource(resources, record.fields[3]);
+      /* Push graphic state. */
       dbuffer_printf(graphic_content, "q\n");
+      /* Set graphic transformation matrix and draw image. */
       dbuffer_printf(graphic_content, "  %d 0 0 %d %d %d cm\n", arg1, arg2, x,
           y);
       dbuffer_printf(graphic_content, "  /Img%d Do\n", image_id);
+      /* Pop graphic state. */
       dbuffer_printf(graphic_content, "Q\n");
       continue;
     }
@@ -235,6 +266,7 @@ parse_graphic(FILE *input, int origin_x, int origin_y,
   return 0;
 }
 
+/* Read _pages_ format from _pages_file_ and write PDF to _pdf_file_. */
 int
 print_pages(FILE *pages_file, FILE *typeface_file, FILE *pdf_file)
 {
@@ -262,6 +294,7 @@ print_pages(FILE *pages_file, FILE *typeface_file, FILE *pdf_file)
   dbuffer_printf(&text_content.buffer, "BT\n");
   dbuffer_init(&graphic_content, 1024 * 4, 1024 * 4);
   init_record(&record);
+  /* Parse document mode _pages_. */
   for (;;) {
     parse_result = parse_record(pages_file, &record);
     if (parse_result == EOF)

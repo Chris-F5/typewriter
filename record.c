@@ -30,6 +30,7 @@ begin_field(struct record *record)
 }
 
 enum ParseState {
+  /* PARSING STATES */
   PARSE_BEGIN,
   PARSE_NORMAL_FIELD,
   PARSE_NORMAL_FIELD_ESCAPE,
@@ -39,6 +40,7 @@ enum ParseState {
   /* TERMINATING STATES */
   PARSE_FINISH_RECORD,
   PARSE_EOF,
+  /* ERROR STATES */
   PARSE_UNTERMINATED_STRING,
   PARSE_UNTERMINATED_ESCAPE,
 };
@@ -50,6 +52,7 @@ parse_record(FILE *file, struct record *record)
   state = PARSE_BEGIN;
   record->string.size = 0;
   record->field_count = 0;
+  /* State machine. */
   while (state < PARSE_FINISH_RECORD) {
     c = fgetc(file);
     switch (state) {
@@ -138,6 +141,7 @@ parse_record(FILE *file, struct record *record)
       break;
     }
   }
+  /* _state_ is now in its final position. */
   switch (state) {
   case PARSE_UNTERMINATED_STRING:
     fprintf(stderr, "Failed to parse record: unterminated string.\n");
@@ -159,6 +163,7 @@ error:
   return 1;
 }
 
+/* Find the index of field that matches _field_str_ otherwise return -1. */
 int
 find_field(const struct record *record, const char *field_str)
 {

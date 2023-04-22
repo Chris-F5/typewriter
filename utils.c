@@ -8,6 +8,7 @@
 
 #include "tw.h"
 
+/* Call _malloc_ and catch memory error. */
 void *
 xmalloc(size_t len)
 {
@@ -17,6 +18,7 @@ xmalloc(size_t len)
   return p;
 }
 
+/* Call _realloc_ and catch memory error. */
 void *
 xrealloc(void *p, size_t len)
 {
@@ -33,6 +35,7 @@ is_font_name_valid(const char *font_name)
     return 1;
   while (*font_name) {
     c = *font_name;
+    /* '-' or 0-9 or '_' or A-Z or a-z */
     if (c == 45 || (c >= 48 && c <= 57) || c == 95 || (c >= 65 && c <= 90)
         || (c >= 97 && c <= 122)) {
       font_name++;

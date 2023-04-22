@@ -34,11 +34,21 @@ dbuffer_printf(struct dbuffer *buf, const char *format, ...)
   va_list args;
   int len;
   va_start(args, format);
+  /*
+   * Write to data but don't overflow the buffer. _len_ is the number of bytes
+   * that would have been written if the buffer were large enough.
+   */
   len = vsnprintf(buf->data + buf->size, buf->allocated - buf->size, format,
       args);
+  /* If there was not enough space allocated: */
   if (len >= buf->allocated - buf->size) {
+    /* Allocate enough space for _len_ bytes. */
     buf->allocated += buf->increment * (1 + len / buf->increment);
     buf->data = xrealloc(buf->data, buf->allocated);
+    /*
+     * Write to data without checking overflow because we know there is enough
+     * space allocated.
+     */
     vsprintf(buf->data + buf->size, format, args);
   }
   buf->size += len;

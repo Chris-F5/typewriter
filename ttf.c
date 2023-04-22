@@ -40,6 +40,7 @@ static int (*required_table_parsers[REQUIRED_TABLE_COUNT])
   read_hmtx_table,
 };
 
+/* Convert big-edian to little-endian. Assume this machine is little-endian. */
 static int16_t
 read_int16(const char *ptr)
 {
@@ -201,6 +202,14 @@ read_hmtx_table(const char *table, long table_size, struct font_info *info)
 int
 read_ttf(FILE *file, struct font_info *info)
 {
+  /*
+   * This file was originally written to parse the ttf data from a buffer. I
+   * later decided to change the function definition to read straight from a
+   * file descriptor. I couldn't be bothered to rewrite all the ttf parsing
+   * code to read right from the file, so I added the following hack that reads
+   * the file into a sufficiently large buffer and then the rest of the code
+   * works as it did before.
+   */
   char *ttf;
   long ttf_size;
   fseek(file, 0, SEEK_END);

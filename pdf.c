@@ -3,6 +3,11 @@
  * See LICENSE for license details.
  */
 
+/* 
+ * This file implements a PDF 1.7 writer. Get a copy of the 1.7 specification
+ * to understand the format.
+ */
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -296,9 +301,10 @@ pdf_add_resources(FILE *pdf_file, FILE *typeface_file, int resources_obj,
   image_objs = xmalloc(resources->images.field_count * sizeof(int));
   for (i = 0; i < resources->fonts_used.field_count; i++)
     font_objs[i] = -1;
+  /* Create font resources for used fonts in the typeface. */
   while ( (parse_result = parse_record(typeface_file, &typeface_record))
       != EOF ) {
-    if (parse_result)
+    if (parse_result) /* If failed to parse record then skip it. */
       continue;
     if (typeface_record.field_count != 2) {
       fprintf(stderr, "Typeface records must have exactly 2 fields.");
@@ -315,9 +321,14 @@ pdf_add_resources(FILE *pdf_file, FILE *typeface_file, int resources_obj,
           typeface_record.fields[0]);
       continue;
     }
+    /*
+     * If this font name is in _resources->fonts_used_ then it is used
+     * somewhere in the PDF so write the font resource to the PDF.
+     */
     i = find_field(&resources->fonts_used, typeface_record.fields[0]);
-    if (i == -1)
+    if (i == -1) /* Font not used. */
       continue;
+    /* Add the font resource. */
     font_file = fopen(typeface_record.fields[1], "r");
     if (font_file == NULL) {
       fprintf(stderr, "Failed to open ttf file '%s': %s\n",
@@ -334,6 +345,7 @@ pdf_add_resources(FILE *pdf_file, FILE *typeface_file, int resources_obj,
   }
   free_record(&typeface_record);
 
+  /* Add image resources. */
   for (i = 0; i < resources->images.field_count; i++) {
     image_file = fopen(resources->images.fields[i], "r");
     if (image_file == NULL) {
@@ -345,6 +357,7 @@ pdf_add_resources(FILE *pdf_file, FILE *typeface_file, int resources_obj,
     fclose(image_file);
   }
 
+  /* Add the PDF resources object. */
   pdf_start_indirect_obj(pdf_file, xref, resources_obj);
   fprintf(pdf_file, "<<\n  /Font <<\n");
   for (i = 0; i < resources->fonts_used.field_count; i++) {
