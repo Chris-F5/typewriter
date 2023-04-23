@@ -22,7 +22,7 @@ cite_ttf_spec=6
 cite_pdf_spec=7
 cite_introduction_to_algorithms=8
 
-(bash | pager.py -n -c .contents) > .content_pages << END_CONTENT
+(bash | pager.py -n -c .contents -H "Christopher Lang | Typesetting System") > .content_pages << END_CONTENT
 
 section_counter=0
 subsection_counter=0
@@ -884,6 +884,31 @@ second.
 END_TEXT
 
 header "Technical Solution" ###################################################
+
+function embed_source {
+  basename "\$1" | awk '{printf "*%s*\n", \$0}' | markup_text.py -w $body_width -s 12 -a l | sed 's/^opt_break$//'
+  echo "glue 3"
+  $mark "  \$(basename \$1)"
+  (sed 's/\t/    /g' | awk '{printf "%03d %s\n", ++i, \$0}' | markup_raw.py -o 8 -w 4 -s 8) < \$1
+  echo "glue 10"
+}
+
+embed_source "../Makefile"
+embed_source "../tw.h"
+embed_source "../tw.c"
+embed_source "../line_break.c"
+embed_source "../dbuffer.c"
+embed_source "../record.c"
+embed_source "../pdf.c"
+embed_source "../jpeg.c"
+embed_source "../ttf.c"
+embed_source "../utils.c"
+
+embed_source "../utils.py"
+embed_source "../contents.py"
+embed_source "../markup_raw.py"
+embed_source "../markup_text.py"
+embed_source "../pager.py"
 
 header "Testing" ##############################################################
 

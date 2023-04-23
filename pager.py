@@ -82,22 +82,24 @@ def gizmos_height(gizmos):
 
 class PageGenerator:
   def __init__(self, width, height, top_padding, bot_padding, left_padding,
-               right_padding):
+               right_padding, header_text):
     self.width = width
     self.height = height
     self.top_padding = top_padding
     self.bot_padding = bot_padding
     self.left_padding = left_padding
     self.right_padding = right_padding
+    self.header_text = header_text
     self.page_count = 0
   def new_page(self):
     self.page_count += 1
     return Page(self.width, self.height, self.top_padding, self.bot_padding,
-                self.left_padding, self.right_padding, str(self.page_count))
+                self.left_padding, self.right_padding, str(self.page_count),
+                self.header_text)
 
 class Page:
   def __init__(self, width, height, top_padding, bot_padding, left_padding,
-               right_padding, page_number):
+               right_padding, page_number, header_text):
     self.width = width
     self.height = height
     self.top_padding = top_padding
@@ -106,6 +108,7 @@ class Page:
     self.right_padding = right_padding
     self.page_number = page_number
     self.max_content_height = self.height - self.top_padding - self.bot_padding
+    self.header_text = header_text
     self.normal_gizmos = []
     self.footnote_gizmos = []
     self.marks = []
@@ -138,6 +141,14 @@ class Page:
     graphic = re.sub(r"opt_break.*", "", graphic)
     graphic = re.sub(r"box.*", "", graphic)
     return graphic
+  def header_graphic(self):
+    text = "FONT Italic 12\n"
+    text += 'STRING "{}"\n'.format(strip_string(self.header_text))
+    graphic = line_break(text, \
+        self.width - self.left_padding - self.right_padding, 'c')
+    graphic = re.sub(r"opt_break.*", "", graphic)
+    graphic = re.sub(r"box.*", "", graphic)
+    return graphic
   def print(self, show_page_number):
     print("START PAGE")
     y = self.height - self.top_padding
@@ -156,6 +167,9 @@ class Page:
     if show_page_number:
       print("MOVE {} {}".format(self.left_padding, self.bot_padding // 2))
       print(self.page_number_graphic())
+    if self.header_text != "":
+      print("MOVE {} {}".format(self.left_padding, self.height - self.top_padding // 2))
+      print(self.header_graphic())
     print("END")
 
 arg_parser = argparse.ArgumentParser()
@@ -165,10 +179,11 @@ arg_parser.add_argument("-t", "--top_margin", type=int, default=125)
 arg_parser.add_argument("-b", "--bot_margin", type=int, default=125)
 arg_parser.add_argument("-c", "--contents")
 arg_parser.add_argument("-n", "--page_numbers", action="store_true")
+arg_parser.add_argument("-H", "--header", default="")
 args = arg_parser.parse_args()
 
 page_generator = PageGenerator(595, 842, args.top_margin, args.bot_margin, \
-    args.left_margin, args.right_margin)
+    args.left_margin, args.right_margin, args.header)
 pages = []
 active_page = page_generator.new_page()
 pending_normal_gizmos = []
