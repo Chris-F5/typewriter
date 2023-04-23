@@ -132,7 +132,7 @@ class Page:
     return True
   def page_number_graphic(self):
     text = "FONT Regular 12\n"
-    text += 'STRING "{}"'.format(strip_string(self.page_number))
+    text += 'STRING "{}"\n'.format(strip_string(self.page_number))
     graphic = line_break(text, \
         self.width - self.left_padding - self.right_padding, 'c')
     graphic = re.sub(r"opt_break.*", "", graphic)
