@@ -90,7 +90,7 @@ parse_record(FILE *file, struct record *record)
       }
       break;
     case PARSE_NORMAL_FIELD_ESCAPE:
-      if (c == EOF) {
+      if (c == EOF || c == '\n') {
         state = PARSE_UNTERMINATED_ESCAPE;
       } else {
         state = PARSE_NORMAL_FIELD;
@@ -98,7 +98,7 @@ parse_record(FILE *file, struct record *record)
       }
       break;
     case PARSE_QUOTED_FIELD:
-      if (c == EOF) {
+      if (c == EOF || c == '\n') {
         state = PARSE_UNTERMINATED_STRING;
       } else if (c == '\\') {
         state = PARSE_QUOTED_FIELD_ESCAPE;
@@ -110,7 +110,7 @@ parse_record(FILE *file, struct record *record)
       }
       break;
     case PARSE_QUOTED_FIELD_ESCAPE:
-      if (c == EOF) {
+      if (c == EOF || c == '\n') {
         state = PARSE_UNTERMINATED_ESCAPE;
       } else {
         state = PARSE_QUOTED_FIELD;

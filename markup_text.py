@@ -104,7 +104,7 @@ class MainStream(TextStream):
       if len(parts) < 2:
         return
       footnote_symbol, footnote_text = parts
-      footnote_symbol = "[{}]".format(footnote_symbol)
+      footnote_symbol = "{}".format(footnote_symbol)
       self.add_word(footnote_symbol)
       self.read_footnote(footnote_symbol, footnote_text)
       return

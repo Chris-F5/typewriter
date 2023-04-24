@@ -226,17 +226,19 @@ pdf_add_font(FILE *pdf_file, FILE *font_file, struct pdf_xref_table *xref,
 {
   struct font_info font_info;
   int font_program, font_widths, font_descriptor, font;
-  font_program = allocate_pdf_obj(xref);
-  font_widths = allocate_pdf_obj(xref);
-  font_descriptor = allocate_pdf_obj(xref);
-  font = allocate_pdf_obj(xref);
 
   fseek(font_file, 0, SEEK_SET);
   if (read_ttf(font_file, &font_info))
     return -1;
   fseek(font_file, 0, SEEK_SET);
+
+  font_program = allocate_pdf_obj(xref);
+  font_widths = allocate_pdf_obj(xref);
+  font_descriptor = allocate_pdf_obj(xref);
+  font = allocate_pdf_obj(xref);
+
   pdf_start_indirect_obj(pdf_file, xref, font_program);
-  pdf_write_file_stream(pdf_file, font_file);;
+  pdf_write_file_stream(pdf_file, font_file);
   pdf_end_indirect_obj(pdf_file);
 
   pdf_start_indirect_obj(pdf_file, xref, font_widths);
