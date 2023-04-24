@@ -124,11 +124,12 @@ open_typeface(FILE *typeface_file)
     if (read_ttf(font_file, &(*next_font)->font_info)) {
       fprintf(stderr, "Failed to parse ttf file: '%s'\n", record.fields[1]);
       free(*next_font);
-      *next_font = NULL;
+    } else {
+      next_font = &(*next_font)->next;
     }
-    next_font = &(*next_font)->next;
     fclose(font_file);
   }
+  *next_font = NULL;
   free_record(&record);
   return first_font;
 }
@@ -539,6 +540,10 @@ main(int argc, char **argv)
     die_usage(argv[0]);
   input_file = stdin;
   typeface_file = fopen("typeface", "r");
+  if (typeface_file == NULL) {
+    fprintf(stderr, "Failed to open typeface file.\n");
+    return 1;
+  }
   output_file = stdout;
   typeface = open_typeface(typeface_file);
   fclose(typeface_file);
