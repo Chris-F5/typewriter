@@ -1,5 +1,6 @@
 #!/bin/sh
 
+cd $(dirname $0)
 PATH=$PATH:..
 
 (sh | pager.py -n -c .contents) > .content_pages << END_CONTENT
