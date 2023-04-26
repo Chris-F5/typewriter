@@ -301,12 +301,23 @@ subheader "File Structure and Source Control"
 $markup_text << END_TEXT
 _git_ was used for the projects source control combined with _GitHub_ to backup
 the repository in the cloud.
-A secondary branch was created for the excessive code commenting that the NEA
-specification requires.
+A secondary branch was created for the excessive code commenting and report
+required by the NEA specification.
 
-TODO: EXPLAIN FOLDER STRUCTURE INCLUDING SYMBOLIC LINKS
+Source files are stored in the root 'typewriter' directory.
+I did not feel the need to place them in a nested folder structure as they
+are relate more procedurally than hierarchically.
+In addition, it is easier and faster to access them when they are all in the
+root folder.
+Object files and binaries are also built into the same root directory.
+
+The 'report' directory contains, source files and image for generating this
+report along with symbolic links that point to the sample 'typeface' file and
+'fonts' directory located in 'typewriter'.
+These symbolic links are read by 'report.sh' when generating this report.
+The 'test' directory contains test documents and similar symbolic links.
 END_TEXT
-tree .. --charset ASCI -I __* | sed '1d' | $markup_code
+tree .. --charset ASCI -I __* -I *.o | sed 's/^..$/typewriter/' | $markup_code
 
 subheader "Executable Files"
 $markup_text << END_TEXT
