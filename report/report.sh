@@ -55,84 +55,78 @@ function subsubheader {
   echo "glue 4"
 }
 
-header "Analysis" #############################################################
+header "Analysis"
 
-subheader "Problem Statement" #################################################
+subheader "Problem Statement"
 $markup_text << END_TEXT
-To create a document preparation system capable of typesetting project reports.
+To create a document preparation system for project reports.
 END_TEXT
 
-subheader "Problem Background" ################################################
+subheader "Problem Background and Analysis"
 $markup_text << END_TEXT
-Digital, printable documents are often distributed and stored in machine
-readable formats such as PDF and PostScript.
-Software used to create these documents often have responsibilities such as:
-END_TEXT
-$markup_list << END_LIST
-  * Dividing text into lines ('filling').
-  * Dividing lines into pages.
-  * Positioning content in a page.
-  * Placing footnotes on the appropriate pages.
-END_LIST
-$markup_text << END_TEXT
-Document preparation software typically falls into one of two categories:
-what you see is what you get (WSYIWYG) editors and those which compile
-documents from a text input.
-WSYIWYG editors provide a GUI which shows the user how the document will appear
-as they write.
+As a student, I often need to create digital, printable documents.
+I have experimented with a range of document preparation systems: Microsoft
+Word, Markdown, LaTeX, etc.
+But I am yet to find a solution that is simultaneously simple, powerful and
+easy to use.
+This project intends to achieve all three of these goals.
+
+A major part of document preparation is text processing.
+This involves converting markup into formatted lines of text.
+Markup describes the content and can influence the formatting of the text.
+Digital text processing systems typically come in three types
+^* Coombs, James H.; Renear, Allen H.; DeRose, Steven J. (November 1987). Markup systems and the future of scholarly text processing. Communications of the ACM 30 http://xml.coverpages.org/coombs.html
+: presentational, procedural and descriptive.
+
+Presentational systems provide a GUI "what you see is what you get" (WSYIWYG)
+editor to enable the user to modify the documents markup.
+Text is typeset and displayed to the user as they write.
 This type of editor is often easy to use, but it is difficult to have a wide
 range of capabilities within the confines of a GUI/window system [$cite_groff].
-My software will compile PDF from a text based input stream.
-This input stream will be in a standard format to describe the content and
-style of the document to be produced.
+
+Procedural markup consists of a sequence of commands that instruct the software
+how to format the text.
+By combining a small set of simple commands, complex behaviour can be achieved.
+However, as commands are processed sequentially, it is often difficult to have
+the formatting of earlier text depend on later content.
+Consider a two-column page with footnotes that span the entire page.
+The first column is written and formatted with no footnotes and then a
+footnote appears on the second column which reduces the height available for
+the first column.
+Clearly, the first column must be re-formatted to make it's text shorter.
+But what if this causes the footnote to appear on the next page - now the first
+page's columns are shorter for no reason!
+As you can see, procedural markup has difficulty in solving certain typesetting
+problems.
+
+Descriptive markup identifies what each part of text IS and not how to typeset
+it.
+For example, a header may be surrounded in _<header> </header>_ tags.
+Then, the text-processing system is responsible for deciding how to format this
+header.
+This system is more flexible than procedural markup, the footnote problem
+described in the last problem can be solved simply by marking a section of text
+as a footnote and relying on the typesetting software to insert it in the right
+page.
+However, 'tags' cant be combined as effectively as Procedural markup commands,
+this means descriptive markup languages can quickly become very complicated
+with a huge number of 'tags' that the user must know (think HTML).
+
+Apart from text-processing, document preparation systems must be able to insert
+graphics into page content and output to a printable file format.
+PDF and PostScript are the most common of such formats.
+PostScript is the older of the two formats, it is a text based format which
+may make it easier to generate.
+PDF is more widely used, has a richer set of features and its standard is
+better documented.
 END_TEXT
 
-subheader "Research of Existing Solutions" ####################################
-$markup_text << END_TEXT
-*groff.* First released in 1990, groff is GNU's replacement for
-troff.
-Like troff, groff makes use of Unix pipes to process documents in several
-modular stages.
-Groffs compatibility with Unix systems is, in my eyes, its greatest strength
-because, unlike graphical editors, Groff can be invoked programmatically
-to take input from existing files or streams.
-In addition, the groff input file syntax and syntax of many groff preprocessors
-is designed to be simple to parse and generate through Unix streams.
-This makes it easy to write programs to process or modify the document before
-it is typeset.
-The groff manual [$cite_groff] was a valuable resource in understanding how
-procedural markup languages can solve difficult typesetting problems in a
-single pass.
-
-*TeX + LaTeX.* TeX is a typesetting system first released in 1978.
-I used a derivative of TeX, LaTeX, to write a number of documents for a school
-project.
-My frustration with LaTeX's unreadable syntax and confusing extension system
-was the initial impetus to make an alternative.
-The TeXbook [$cite_texbook] discusses a model of untypeset content consisting
-of an ordered list of _gizmos_ each representing an atom of content.
-This model was an promising starting point in my thoughts about how to best
-define document content before it is typeset.
-Donald E Knuth's paper 'Breaking Paragraphs into Lines'
-[$cite_breaking_paragraphs_into_lines] describes the line breaking algorithm
-used by TeX and compares it to the more primitive 'first fit' method.
-
-*HTML + CSS.* Although browsers do not need to split webpage content into
-pages, text and graphics must still be arranged on the screen depending on
-resolution.
-I read an online article about how browsers work [$cite_how_browsers_work] and
-a blog about building a browser engine [$cite_lets_build_a_browser_engine] to
-understand this layout process.
-The hierarchical DOM provides an alternative document content model to TeX's
-linear _gizmos.
-END_TEXT
-
-subheader "Intended End-User" #################################################
+subheader "Intended End-User"
 $markup_text << END_TEXT
 Users of Unix-like operating systems who need to generate PDF documents.
 END_TEXT
 
-subheader "Third Party" #######################################################
+subheader "Third Party"
 $markup_text << END_TEXT
 Anthony Ceponis uses a Linux based operating system and has recently finished
 writing a computer science NEA using 'google docs' - a WYSIWYG editor.
@@ -160,11 +154,75 @@ automatically inserting the source code into the PDF document?
 that would achieve what you just described.
 END_TEXT
 
-subheader "Objectives" ########################################################
-$markup_list << END_OBJECTIVES
-END_OBJECTIVES
+subheader "Research and Modelling"
+$markup_text << END_TEXT
+To embark my research, I examined some existing solutions:
 
-subheader "Research of Implementation" ########################################
+*groff.* First released in 1990, groff is GNU's replacement for
+troff.
+Like troff, groff makes use of Unix pipes to process documents in several
+modular stages.
+Groffs compatibility with Unix systems is, in my eyes, its greatest strength
+because, unlike graphical editors, Groff can be invoked programmatically
+to take input from existing files or streams.
+In addition, the groff input file syntax and syntax of many groff preprocessors
+is designed to be simple to parse and generate through Unix streams.
+This makes it easy to write programs to process or modify the document before
+it is typeset.
+The groff manual [$cite_groff] was a valuable resource in understanding how
+procedural markup languages can solve difficult typesetting problems in a
+single pass.
+The following diagram shows how Unix pipes are used to modularize the
+typesetting process. Each box is a binary program and each arrow is a Unix
+pipe.
+END_TEXT
+
+echo "box 117"
+echo "START GRAPHIC"
+echo "IMAGE 390 117 groff.jpg"
+echo "END"
+
+$markup_text << END_TEXT
+*TeX + LaTeX.* TeX is a typesetting system first released in 1978.
+I used a derivative of TeX, LaTeX, to write a number of documents for a school
+project.
+My frustration with LaTeX's unreadable syntax and confusing extension system
+was the initial impetus to make an alternative.
+The TeXbook [$cite_texbook] discusses a model of untypeset content consisting
+of an ordered list of _gizmos_ each representing an atom of content.
+This model was an promising starting point in my thoughts about how to best
+define document content before it is typeset.
+Donald E Knuth's paper 'Breaking Paragraphs into Lines'
+[$cite_breaking_paragraphs_into_lines] describes the line breaking algorithm
+used by TeX and compares it to the more primitive 'first fit' method.
+The following image shows how _box, glue,_ and _penalty_ gizmos are used to
+model the text "Hello World!".
+END_TEXT
+
+echo "box 77"
+echo "START GRAPHIC"
+echo "IMAGE 300 77 gizmos.jpg"
+echo "END"
+
+$markup_text << END_TEXT
+*HTML + CSS.* Although browsers do not need to split webpage content into
+pages, text and graphics must still be arranged on the screen depending on
+resolution.
+I read an online article about how browsers work [$cite_how_browsers_work] and
+a blog about building a browser engine [$cite_lets_build_a_browser_engine] to
+understand this layout process.
+The hierarchical DOM provides an alternative document content model to TeX's
+linear _gizmos._
+The following diagram shows how CSS "block" and "inline" boxes are placed on a
+page.
+END_TEXT
+
+echo "box 260"
+echo "START GRAPHIC"
+echo "IMAGE 390 260 css.jpg"
+echo "END"
+echo "glue 5"
+
 $markup_text << END_TEXT
 In order to better understand the technical requirements of the project, I
 conducted some more specific research into the implantation details.
@@ -189,24 +247,68 @@ the algorithm will need to be modified to search for the feasible edges as it
 progresses through the text.
 END_TEXT
 
-subheader "Prototype" #########################################################
+subheader "Objectives"
+$markup_text << END_TEXT
+I have decided to make document preparation software which uses a
+text-processing system of the 'descriptive' type (though some procedural
+features may be supported).
+After considering my online secondary research and discussion with Anthony, I
+have produced the following set of specific and measurable objectives.
+END_TEXT
+$markup_code << END_OBJECTIVES
+Typeset PDF Document
+  1. Parsing Input
+    1.1 Escape sequence identifies bold text
+    1.2 Escape sequence identifies italic text
+    1.3 Escape sequence identifies headers text of multiple sizes
+    1.4 Escape sequence identifies footnote
+  2. Break text into lines
+    2.1 Optimal line breaks are selected to minimize total trailing whitespace
+    2.2 Line breaks can insert text when a break does not occur (for example insert a space)
+    2.3 Line breaks can insert text at the end of a line it breaks (for example a hyphen)
+    2.4 Text of varied fonts and sizes can be mixed in the same paragraph
+  3. Break lines into pages
+    3.1 Lines are fitted onto pages to minimise empty spece at the end of each page
+    3.2 Footnotes are inserted at the bottom of the page
+    3.3 A footnote must appear on the same page it's referenced
+    3.4 Images can be inserted into the content
+    3.5 Page numbers can optionally appear at the bottom of each page
+    3.6 A contents page can be added which automatically locates relevant page numbers
+    3.7 User-specified header text will appear at the top of each page
+    3.8 Margin sizes can be controlled by the user
+    3.9 Pages are written to a PDF file
+    3.10 Fonts used are embedded into the PDF file
+    3.11 Images used are embedded into the PDF file
+END_OBJECTIVES
+
+subheader "Prototype"
 $markup_text << END_TEXT
 In order to demonstrate the feasibility of the project, I wrote a python script
 to generate a simple PDF file.
 After successfully writing a one-page PDF file containing text of a built-in
-font, I decided that the project was achievable.
+font, I decided that the project was likely achievable.
 END_TEXT
 
-header "Documented Design" ####################################################
+header "Documented Design"
 
-subheader "Operating System" ##################################################
+subheader "Operating System"
 $markup_text << END_TEXT
-This project makes use of Unix-like operating system features such as Unix
-pipes and the LF line ending format.
-As a result, this project is intended to work on Unix-like machines only.
+This project is intended to work on Unix-like machines only because it requires
+use of Unix pipes.
 END_TEXT
 
-subheader "Executable Files" ##################################################
+subheader "File Structure and Source Control"
+$markup_text << END_TEXT
+_git_ was used for the projects source control combined with _GitHub_ to backup
+the repository in the cloud.
+A secondary branch was created for the excessive code commenting that the NEA
+specification requires.
+
+TODO: EXPLAIN FOLDER STRUCTURE INCLUDING SYMBOLIC LINKS
+END_TEXT
+tree .. --charset ASCI -I __* | sed '1d' | $markup_code
+
+subheader "Executable Files"
 $markup_text << END_TEXT
 In order to modularise the typesetting process and make the project more
 compatible with Unix systems, multiple independent executable files are built
