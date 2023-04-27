@@ -1180,6 +1180,56 @@ END_TEXT
 
 subheader "Feedback"
 
+$markup_text << END_TEXT
+I spoke to the third-party of the project - Anthony Ceponis - about the
+finished project.
+We looked at the shell script that builds the report and discussed how my new
+typesetting system compares to alternatives such as LaTeX.
+The following is an extract of Anthony's comments.
+
+_I definitely think that this is a huge improvement over LaTeX. The main reason
+I prefer this new system you have built is because much less syntax is needed
+to achieve the exact same things without jeopardising the clarity of the
+markup. On the note of the markup itself, I really like how human readable it
+is. For example, there is a very limited use of non alpha numeric symbols (like
+angle brackets which are abused in html) which I think is a huge plus.
+
+I would not really compare this to something like Google docs because I think
+they are both built for different things. Google docs is very much a 'user'
+product rather than a developer oriented product which is why I don't think it
+would be that appropriate to compare them. I can easily see your typesetting
+system being used by people like web-developers to create complex documents
+with complex structures or even for simpler use like storing
+structured/formatted blogs on a database.
+
+Obviously this project is still very young so my suggested improvements would
+have probably been incorporated over time anyways but I would be interested to
+see how things like mathematical symbols would be represented (e.g. integral
+and sigma signs) in the markup because currently I use latex for this and I am
+not a huge fan of how it works currently. I also dislike the bracketing system
+in latex (the height of brackets should be able to adjust automatically without
+the need for extra code). Some more complicated features like tables would also
+be interesting to see. Clearly the only improvements I have are to just add
+more features but as of now, I don't have any complaints about changing any
+existing markup systems in your project._
+
+I agree with Anthony's remark that the project is more suitable for developers
+than for the average computer user.
+Perhaps an optional, additional layer of abstraction could be provided to
+simplify basic usage of the system for novice Unix users.
+
+I disagree however, with Anthony's belief that the project simply needs to
+'just add more features'.
+I believe that the best way to improve on the project is to redesign the
+fundamental system to give the user a set of simple cohesive tools which can be
+combined to produce more complex features such as tables.
+
+Overall, I think Anthony's comments reflect my assertion that the project
+fulfills its original goals, though it could be improved further in some ways
+if more time was available.
+END_TEXT
+
+
 END_CONTENT
 
 (sh | tw -o nea.pdf) << END_DOCUMENT
