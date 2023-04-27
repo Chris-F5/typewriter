@@ -19,19 +19,25 @@ args = arg_parser.parse_args()
 
 font_size = args.font_size
 font = args.font_name
+# _orphans_ is the maximum number of allowed orphans.
 orphans = args.orphans
+# _widows_ is the maximum number of allowed widowsd.
 widows = args.widows
 
+# Read all lines from standard input and loop over them.
 lines = sys.stdin.readlines()
-
 i = 0
 for line in lines:
   i += 1
+  # Make a box for this line with the line text in it and write this to stdout.
   print("box {}".format(font_size))
   print("START TEXT")
   print("FONT {} {}".format(strip_string(font), font_size))
   print('STRING "{}"'.format(strip_string(line)))
   print("END")
+  # Only allow a page break here if it does not result in too many orphans or
+  # widows.
   if i >= orphans and len(lines) - i >= widows:
     print("opt_break")
+# Allow a page break after all lines of text.
 print("opt_break")
