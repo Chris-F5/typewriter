@@ -135,7 +135,7 @@ arg_parser = argparse.ArgumentParser()
 arg_parser.add_argument("-w", "--normal_width", type=int, required=True)
 arg_parser.add_argument("-W", "--footnote_width", type=int)
 arg_parser.add_argument("-s", "--normal_size", type=int, default=12)
-arg_parser.add_argument("-S", "--footnote_size", type=int, default=12)
+arg_parser.add_argument("-S", "--footnote_size", type=int)
 arg_parser.add_argument("-a", "--normal_align", default='l')
 arg_parser.add_argument("-A", "--footnote_align", default='l')
 arg_parser.add_argument("-l", "--normal_line_spacing", default=0)
@@ -143,6 +143,8 @@ arg_parser.add_argument("-L", "--footnote_line_spacing", default=0)
 arg_parser.add_argument("-p", "--normal_paragraph_spacing")
 arg_parser.add_argument("-P", "--footnote_paragraph_spacing")
 args = arg_parser.parse_args()
+if args.footnote_size == None:
+  args.footnote_size = args.normal_size
 if args.footnote_width == None:
   args.footnote_width = args.normal_width
 if args.normal_paragraph_spacing == None:
