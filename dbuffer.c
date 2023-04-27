@@ -9,25 +9,31 @@
 
 #include "tw.h"
 
+/* Initialise the dbuffer pointed to by _buf_. */
 void
 dbuffer_init(struct dbuffer *buf, int initial, int increment)
 {
   buf->size = 0;
   buf->allocated = initial;
   buf->increment = increment;
+  /* Allocate the initial heap memory. */
   buf->data = xmalloc(buf->allocated);
 }
 
+/* Write a character to the end of a dynamic buffer. */
 void
 dbuffer_putc(struct dbuffer *buf, char c)
 {
+  /* If there is insufficient space in the buffer then allocate more. */
   if (buf->allocated == buf->size) {
     buf->allocated += buf->increment;
     buf->data = xrealloc(buf->data, buf->allocated);
   }
+  /* Add the character and increment _size_. */
   buf->data[buf->size++] = c;
 }
 
+/* Formatted print to the end of the buffer. */
 void
 dbuffer_printf(struct dbuffer *buf, const char *format, ...)
 {
@@ -55,6 +61,7 @@ dbuffer_printf(struct dbuffer *buf, const char *format, ...)
   va_end(args);
 }
 
+/* Free dynamic buffer heap allocated memory. */
 void
 dbuffer_free(struct dbuffer *buf)
 {
