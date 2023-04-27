@@ -85,7 +85,6 @@ class MainStream(TextStream):
       if len(parts) < 2:
         return
       footnote_symbol, footnote_text = parts
-      footnote_symbol = "{}".format(footnote_symbol)
       self.add_word(footnote_symbol)
       self.read_footnote(footnote_symbol, footnote_text)
       return
@@ -95,7 +94,6 @@ class MainStream(TextStream):
       while line[0] == '#':
         line = line[1:]
         level += 1
-      size = None
       if level > 2:
         level = 2
       size = int(self.normal_size * 1.62 ** (3 - level))

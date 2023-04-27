@@ -186,8 +186,6 @@ page_generator = PageGenerator(595, 842, args.top_margin, args.bot_margin, \
     args.left_margin, args.right_margin, args.header)
 pages = []
 active_page = page_generator.new_page()
-pending_normal_gizmos = []
-pending_footnote_gizmos = []
 pending_gizmos = {"normal": [], "footnote": []}
 current_flow = "normal"
 while fields := parse_record(sys.stdin):
