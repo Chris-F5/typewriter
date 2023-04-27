@@ -998,10 +998,86 @@ END_TEXT
 
 header "Technical Solution" ###################################################
 
+subheader "Techniques Used"
+
+$markup_text << END_TEXT
+*Complex File Formats*
+Parsing for the hierarchical _pages_ format is implemented in 'tw.c'.
+I designed this format specifically for this project; it is defined in
+Documented Design.
+
+*Recursive Algorithm*
+'tw.c' parses the _pages_ format by recursivly calling _parse_graphic._
+
+*Dynamic Buffer*
+'tw.h' defines _struct dbuffer_ and 'dbuffer.c' implements functions for it.
+It allocates a region of memory on the heap.
+When more memory is required for the buffer, it is reallocated.
+_dbuffer_printf_ can be used to print a formatted string directly to the end of
+the buffer.
+
+*String List*
+'tw.h' defines _struct record_ and 'record.c' implements functions for it.
+This record stores a list of strings (fields) on the heap and keeps pointers
+to each of these strings in an array also stored on the heap.
+_find_field_ can be used to search for a string in the record.
+
+*Linked List*
+'line_break.c' defines _struct typeface_ and the _gizmo_ structures.
+These are linked lists.
+Functions to manage these linked lists content and memory are also defined:
+_open_typeface, free_typeface, parse_gizmos, free_gizmos,_ etc.
+
+*State Machine*
+'record.c' uses a state machine to parse records.
+_enum ParseState_ defines the states; _parse_record_ implements the state
+machine and state transitions.
+
+*Polymorphism*
+'line_break.c' defines _struct text_gizmo, struct break_gizmo_ and _struct
+mark_gizmo._
+Each of these structures share a number of starting bytes with the same meaning
+(defined by _struct gizmo_ ).
+This means that a function can be passed a generic _struct gizmo_ which can be
+cast to the correct gizmo type based of _type._
+Polymorphism is also used in 'pager.py', where _Box_ and _Glue_ implement the
+same methods.
+
+*Inheritance*
+Inheritance is used in 'markup_text.py' to define a subtypes of TextStream
+can be defined to change how a stream of text if parsed and converted into
+content.
+
+*Shortest Path in Directed Acyclic Graph*
+This shortest path algorithm is similar to Dijkstra's, but is faster since it
+takes advantage of the graphs acyclic nature and topological sort.
+It finished in O(e+v) time where _e_ is number of edges and _v_ is number of
+vertices.
+It is implemented in 'line_break.c' to determine the optimal line breaks that
+minimise the total trailing whitespace at the end of each line.
+
+*Exception Handling*
+Thorough exception handling is used throughout the codebase.
+Examples can be found in most source files.
+One specific example is at the end of _parse_record_ in 'record.c' where
+unterminated strings and escapes are handled.
+
+*File Paths Parameterised*
+'tw.c' provides a command line argument to change the output PDF filename.
+'pager.py' provides a command line argument to change the output 'contents'
+filename.
+
+*Symbolic Links*
+Symbolic links are used in the 'test' and 'report' folders to resolve the
+typeface file and fonts directory.
+END_TEXT
+
+subheader "Source Code"
+
 function embed_source {
   basename "\$1" | awk '{printf "*%s*\n", \$0}' | markup_text.py -w $body_width -s 12 -a l | sed 's/^opt_break$//'
   echo "glue 3"
-  $mark "  \$(basename \$1)"
+  $mark "    \$(basename \$1)"
   (sed 's/\t/    /g' | awk '{printf "%03d %s\n", ++i, \$0}' | markup_raw.py -o 8 -w 4 -s 8) < \$1
   echo "glue 10"
 }
@@ -1070,6 +1146,39 @@ echo "new_page"
 echo "new_page"
 
 header "Evaluation" ###########################################################
+
+subheader "Requirements Met"
+
+$markup_text << END_TEXT
+The project has met it's initial requirements as defined by the project
+statement and list of objectives.
+My experience in typesetting this report with the software has been good; it is
+clear to me that I have produced an effective and useful tool.
+END_TEXT
+
+subheader "Improvements"
+
+$markup_text << END_TEXT
+In its current state, the software considers line breaking and page breaking
+to be two separate problems with a separate implantation.
+This simplifies each individual problem but also limits the software capability
+to solve more complex problems in which line breaking and page breaking can not
+be considered separately (perhaps the width of text is constrained by where it
+falls on a page).
+I envision a so called 'universal content breaker' which is given a complete
+model of all content to be typeset and a well defined objective function.
+This universal content breaker will handle both line breaks, page breaks and
+any other type of content separation that is required in a single optimization
+problem (most likely modeled by a shortest path problem as the line breaking
+currently is).
+By centralizing the typesetting problem, the document content and typesetting
+objective can be defined more rigorously without being limited by pre-selected
+line breaks (as the pager currently is).
+This would also reduce the number of file formats that the user must know,
+potentially making the product easier to use.
+END_TEXT
+
+subheader "Feedback"
 
 END_CONTENT
 
