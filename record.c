@@ -3,32 +3,45 @@
  * See LICENSE for license details.
  */
 
+/*
+ * record.c
+ * Implements functions for _struct record_ including parsing records from a
+ * file. 
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "tw.h"
 
+/* Initialise a record's heap memory. */
 void
 init_record(struct record *record)
 {
+  /* Allocate two KiB for the string. */
   dbuffer_init(&record->string, 1024 * 2, 1024 * 2);
   record->field_count = 0;
+  /* Allocate 32 elements for field pointers. */
   record->fields_allocated = 32;
   record->fields = xmalloc(record->fields_allocated * sizeof(char *));
 }
 
+/* Indicate that a new field will point to the current end of _string_. */
 void
 begin_field(struct record *record)
 {
+  /* Allocate more fields if required */
   if (record->field_count == record->fields_allocated) {
     record->fields_allocated += 32;
-    record->fields = xrealloc(record->fields, record->fields_allocated);
+    record->fields = xrealloc(record->fields, record->fields_allocated * sizeof(char *));
   }
+  /* Add a new field that points to the current end of _string_. */
   record->fields[record->field_count++] = record->string.data
     + record->string.size;
 }
 
+/* All parsing state machine states. */
 enum ParseState {
   /* PARSING STATES */
   PARSE_BEGIN,
@@ -45,16 +58,21 @@ enum ParseState {
   PARSE_UNTERMINATED_ESCAPE,
 };
 
+/* Parse a record from _file_. */
 int
 parse_record(FILE *file, struct record *record)
 {
   int c, state;
+  /* Set initial state. */
   state = PARSE_BEGIN;
+  /* Reset record. */
   record->string.size = 0;
   record->field_count = 0;
-  /* State machine. */
+  /* While state machine not in terminating or error state. */
   while (state < PARSE_FINISH_RECORD) {
+    /* Read the next character from _file_. */
     c = fgetc(file);
+    /* Implement state transitions. */
     switch (state) {
     case PARSE_BEGIN:
       if (c == EOF) {
@@ -137,6 +155,7 @@ parse_record(FILE *file, struct record *record)
       }
       break;
     default:
+      /* The value of _state_ was not handled. */
       fprintf(stderr, "Unexpected state while parsing record.\n");
       break;
     }
@@ -150,9 +169,9 @@ parse_record(FILE *file, struct record *record)
     fprintf(stderr, "Failed to parse record: unterminated escape sequence.\n");
     goto error;
   case PARSE_EOF:
-    return EOF;
+    return EOF; /* Return EOF at end of file. */
   case PARSE_FINISH_RECORD:
-    return 0;
+    return 0; /* Return 0 on success. */
   default:
     fprintf(stderr, "Unexpected terminating state while parsing record.\n");
     goto error;
@@ -160,7 +179,7 @@ parse_record(FILE *file, struct record *record)
 error:
   record->field_count = 0;
   record->string.size = 0;
-  return 1;
+  return 1; /* Return 1 on error. */
 }
 
 /* Find the index of field that matches _field_str_ otherwise return -1. */
@@ -174,6 +193,7 @@ find_field(const struct record *record, const char *field_str)
   return -1;
 }
 
+/* Free _record_ heap allocated memory. */
 void
 free_record(struct record *record)
 {
