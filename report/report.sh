@@ -13,15 +13,6 @@ markup_list="(markup_raw.py -s 10 -f Regular ; echo 'glue 10')"
 markup_code="(markup_raw.py -o 8 -w 4 -s 9; echo 'glue 10')"
 mark="printf 'mark \"%s\"\n'"
 
-cite_groff=1
-cite_texbook=2
-cite_breaking_paragraphs_into_lines=3
-cite_how_browsers_work=4
-cite_lets_build_a_browser_engine=5
-cite_ttf_spec=6
-cite_pdf_spec=7
-cite_introduction_to_algorithms=8
-
 (bash | pager.py -n -c .contents -H "Christopher Lang | Typesetting System") > .content_pages << END_CONTENT
 
 section_counter=0
@@ -82,7 +73,9 @@ Presentational systems provide a GUI "what you see is what you get" (WSYIWYG)
 editor to enable the user to modify the documents markup.
 Text is typeset and displayed to the user as they write.
 This type of editor is often easy to use, but it is difficult to have a wide
-range of capabilities within the confines of a GUI/window system [$cite_groff].
+range of capabilities within the confines of a GUI/window system
+^* GNU Troff (Groff) online manual version 1.22.4.
+.
 
 Procedural markup consists of a sequence of commands that instruct the software
 how to format the text.
@@ -108,7 +101,7 @@ This system is more flexible than procedural markup, the footnote problem
 described in the last problem can be solved simply by marking a section of text
 as a footnote and relying on the typesetting software to insert it in the right
 page.
-However, 'tags' cant be combined as effectively as Procedural markup commands,
+However, 'tags' can't be combined as effectively as Procedural markup commands,
 this means descriptive markup languages can quickly become very complicated
 with a huge number of 'tags' that the user must know (think HTML).
 
@@ -152,6 +145,10 @@ automatically inserting the source code into the PDF document?
 
 *Anthony* I would do unspeakable thinks to have access to a program/feature
 that would achieve what you just described.
+
+From this conversation, it is clear that a document peperation system that is
+able to intergrate into a Unix envoronment (and therefore be able to
+automatically typeset program source code) would beinfit my third party.
 END_TEXT
 
 subheader "Research and Modelling"
@@ -169,7 +166,7 @@ In addition, the groff input file syntax and syntax of many groff preprocessors
 is designed to be simple to parse and generate through Unix streams.
 This makes it easy to write programs to process or modify the document before
 it is typeset.
-The groff manual [$cite_groff] was a valuable resource in understanding how
+The groff reference manual was a valuable resource in understanding how
 procedural markup languages can solve difficult typesetting problems in a
 single pass.
 The following diagram shows how Unix pipes are used to modularize the
@@ -186,14 +183,14 @@ $markup_text << END_TEXT
 *TeX + LaTeX.* TeX is a typesetting system first released in 1978.
 I used a derivative of TeX, LaTeX, to write a number of documents for a school
 project.
-My frustration with LaTeX's unreadable syntax and confusing extension system
+My frustration with LaTeX's hard-to-read syntax and confusing extension system
 was the initial impetus to make an alternative.
-The TeXbook [$cite_texbook] discusses a model of untypeset content consisting
+Donald E Knuth's TeXbook discusses a model of untypeset content consisting
 of an ordered list of _gizmos_ each representing an atom of content.
 This model was an promising starting point in my thoughts about how to best
 define document content before it is typeset.
 Donald E Knuth's paper 'Breaking Paragraphs into Lines'
-[$cite_breaking_paragraphs_into_lines] describes the line breaking algorithm
+ describes the line breaking algorithm
 used by TeX and compares it to the more primitive 'first fit' method.
 The following image shows how _box, glue,_ and _penalty_ gizmos are used to
 model the text "Hello World!".
@@ -208,8 +205,12 @@ $markup_text << END_TEXT
 *HTML + CSS.* Although browsers do not need to split webpage content into
 pages, text and graphics must still be arranged on the screen depending on
 resolution.
-I read an online article about how browsers work [$cite_how_browsers_work] and
-a blog about building a browser engine [$cite_lets_build_a_browser_engine] to
+I read an online article about how browsers work
+^* How Browsers Work: https://web.dev/howbrowserswork/
+and
+a blog about building a browser engine
+^* Lets Build a Browser Engine: https://limpet.net/mbrubeck/2014/08/08/toy-layout-engine-1.html
+to
 understand this layout process.
 The hierarchical DOM provides an alternative document content model to TeX's
 linear _gizmos._
@@ -227,21 +228,23 @@ $markup_text << END_TEXT
 In order to better understand the technical requirements of the project, I
 conducted some more specific research into the implantation details.
 
-*TrueType Reference Manual.* [$cite_ttf_spec] This reference manual defines
+*TrueType Reference Manual.*
+^* https://developer.apple.com/fonts/TrueType-Reference-Manual/
+This reference manual defines
 the binary file format of 'true type' font files.
 Parsing a font file to extract glyph widths and other such data is an essential
 step in the typesetting process.
 
-*ISO 32000-1 Portable Document Format 1.7.* [$cite_pdf_spec] This document is
+*ISO 32000-1 Portable Document Format 1.7.* This document is
 the technical specification for the PDF 1.7 file format.
 The project intends to generate PDF files so understanding the file format is
 necessary.
 
-*Single-source shortest path in DAGs.* [$cite_introduction_to_algorithms]
+*Single-source shortest path in DAGs.* (Introduction to Algorithms - Third
+Eddition 2009)
 This single-source shortest path in directed acyclic graphs algorithm can be
 used to solve the line breaking problem as modeled in Donald E. Knuth's
-'Breaking paragraphs into lines' [$cite_breaking_paragraphs_into_lines] in
-O(V+E) time.
+'Breaking paragraphs into lines' in O(V+E) time.
 In practice, not all feasible lines are known before the algorithm starts, so
 the algorithm will need to be modified to search for the feasible edges as it
 progresses through the text.
@@ -268,7 +271,7 @@ Typeset PDF Document
     2.3 Line breaks can insert text at the end of a line it breaks (for example a hyphen)
     2.4 Text of varied fonts and sizes can be mixed in the same paragraph
   3. Break lines into pages
-    3.1 Lines are fitted onto pages to minimise empty spece at the end of each page
+    3.1 Lines are fitted onto pages to minimise empty space at the end of each page
     3.2 Footnotes are inserted at the bottom of the page
     3.3 A footnote must appear on the same page it's referenced
     3.4 Images can be inserted into the content
@@ -291,9 +294,9 @@ END_TEXT
 
 header "Documented Design"
 
-subheader "Operating System"
+subheader "Target System"
 $markup_text << END_TEXT
-This project is intended to work on Unix-like machines only because it requires
+This project is intended to work only on Unix-like machines because it requires
 use of Unix pipes.
 END_TEXT
 
@@ -316,6 +319,8 @@ report along with symbolic links that point to the sample 'typeface' file and
 'fonts' directory located in 'typewriter'.
 These symbolic links are read by 'report.sh' when generating this report.
 The 'test' directory contains test documents and similar symbolic links.
+The 'demo' directory contain shell scripts and a video which demonstrates the
+completion of objectives.
 END_TEXT
 tree .. --charset ASCI -I __* -I *.o | sed 's/^..$/typewriter/' | $markup_code
 
@@ -330,7 +335,7 @@ well defined file formats: _'text specification', 'content', 'pages',
 
 *tw.* tw (short for typewriter) is the program at the core of the project and
 is often the last step of the typesetting process.
-It converts the stdin stream of the _pages_ format to a PDF file.
+It converts the standard input stream of the _pages_ format to a PDF file.
 The '-o' option can be used to specify where to output the PDF file.
 The 'pages' format defines what graphic elements are to appear on each page and
 where.
@@ -341,8 +346,8 @@ PDF file format.
 It is much easier to write a program to generate the _pages_ format and then to
 pipe that to tw than to write a program which generates PDF files directly.
 
-*pager.* This executable reads the _content_ format from stdin, splits this
-content into _pages_ which are written to stdout.
+*pager.* This executable reads the _content_ format from standard input, splits this
+content into _pages_ which are written to standard output.
 _contents_ is also written to a file. This contains a table of 'marks' (a
 component of the _content_ format) and the pages which these marks are located.
 The _contents_ file is essential in implementing a contents page.
@@ -356,8 +361,8 @@ optional breaks, both types of content must be located on the same page.
 Command line options are provided which control page margins, page numbers
 and where to output the contents file.
 
-*contents.* This program converts the _contents_ table read from stdin into
-_content_ which is written to stdout.
+*contents.* This program converts the _contents_ table read from standard input into
+_content_ which is written to standard output.
 Each entry in the table is converted into a line of text starting with the
 mark name, ending with the page number and padded with dots to achieve a
 set character width.
@@ -365,8 +370,8 @@ A monospaced font is used so that the constant character width translates into
 a constant line width.
 Command line options can be used to set the character width and the font size.
 
-*line_break.* This program reads _text specification_ from stdin, calculates
-the optimal line breaks and writes _content_ to stdout.
+*line_break.* This program reads _text specification_ from standard input, calculates
+the optimal line breaks and writes _content_ to standard output.
 The _text specification_ defines what text is to appear, with what font and
 size, where line breaks can occur and where line breaks must occur.
 Optional breaks can insert text depending on weather the break occurs.
@@ -380,7 +385,7 @@ Command line options can be used to set text align mode and line width.
 Left, right, centre and justified align modes are supported.
 
 *markup_text* and *markup_raw.* The markup programs read a human readable
-markup language from stdin and write _content_ to stdout.
+markup language from standard input and write _content_ to standard output.
 markup_raw writes the text 'as is', maintaining line breaks.
 Font, maximum orphan lines and maximum widow lines can be set with a command line
 options.
@@ -419,11 +424,11 @@ A field consists of EITHER a sequence of characters none of which are spaces or
 new lines OR a sequence of non new line characters enclosed in double quotation
 marks (").
 In each type of field, a backslash can be used to escape the next character.
-For example a backslash followed by a space (\\\\\\\\ ) represents a space
+For example a backslash followed by a space (\\\\ ) represents a space
 literal that does not begin the next field and a backslash followed by a double
-quotation mark (\\\\\\\\") represents a double quotation mark that does not end
+quotation mark (\\\\") represents a double quotation mark that does not end
 the field.
-A double backslash sequence (\\\\\\\\\\\\\\\\) encodes a backslash literal.
+A double backslash sequence (\\\\\\\\) encodes a backslash literal.
 Fields beginning with a double quotation mark must be closed with another
 double quotation mark before the end of the line.
 END_TEXT
@@ -548,7 +553,7 @@ box must be vertically padded by _height_ points.
 *opt_break* A page break may occur at this location
 Every valid page break location must be explicitly defined.
 
-*new_page* If any optional breaks already appear on the current page then the
+*new_page* If any optional breaks already appears on the current page then the
 following content must appear on a new page.
 
 Example _content_ stream:
@@ -580,8 +585,8 @@ END_CODE
 subsubheader "Contents"
 $markup_text << END_TEXT
 The _contents_ format defines information to be displayed in a contents page.
-It is generated by a _pager_ and is the input to a _contents_ program to
-generate contents page content.
+The _contents_ file is generated by _pager_ and is the input to the _contents_
+program to generate contents page content.
 The format consists of a number of records.
 Each record must have 2 fields: the first is the name of some content to be
 marked in the contents page, the second is the page number in which this
@@ -638,8 +643,9 @@ line.
 
 *MARK [identifier]* For the line that contains this mark: an additional record
 is inserted into the content output inbetween the line's box graphic and the
-content optional break.
-This record consists of a carrot symbol (^) followed by the identifier.
+following optional break.
+This additional record consists of a carrot symbol (^) followed by the
+identifier.
 The mark command is used for locating the line with which a footnote that is
 associated with a word in that line must appear.
 
@@ -680,7 +686,7 @@ The _typeface_ format is found in the typeface file (which must be named
 'typeface').
 This file must be located in the current working directory when a program that
 needs it is run.
-Its purpose is to map a font name to a font file.
+Its purpose is to map font names to a font files.
 Each record consists of two fields: the first is a font name, the second is a
 file path to the corresponding font file.
 The file path may be relative to the current working directory.
@@ -736,7 +742,7 @@ $markup_text << END_TEXT
 The record structure stores a variable number of strings which are referred to
 as 'fields'.
 _strings_ is a dynamic buffer that contains each field separated and ended with
-null characters.
+the 0x00 character.
 _fields_ is a pointer to a heap-allocated array of pointers to the first byte
 of each field in _strings._
 _fields_ has been allocated _allocated_ bytes on the heap, this amount may
@@ -820,8 +826,7 @@ subheader "Key Algorithms" ####################################################
 subsubheader "Line Breaker"
 $markup_text << END_TEXT
 The line breaking algorithm used in this project is partially based of that
-presented in Donald E Knuth's 'Breaking Paragraphs into Lines (1981)'
-[$cite_breaking_paragraphs_into_lines].
+presented in Donald E Knuth's 'Breaking Paragraphs into Lines (1981)'.
 
 Input text is modelled by a gizmo list defined in section
 \$xref_line_break_gizmos.
@@ -849,7 +854,7 @@ echo "IMAGE 184 235 dag.jpg"
 echo "END"
 (markup_text.py -w 200 -s 10 -a j -A l | sed 's/^opt_break$//') << END_SIDE
 The shortest path of a DAG can be computed by relaxing each vertex in order of
-a topological sort [$cite_introduction_to_algorithms].
+a topological sort.
 As each edge can only connect an earlier line break to a later one, and because
 line breaks in the gizmo list appear in text order, the break gizmos are
 already necessarily in topological order.
@@ -897,14 +902,20 @@ END_TEXT
 subsubheader "Record Parser"
 ($markup_text | sed 's/^opt_break$//') << END_TEXT
 The python implantation of record parsing uses the following regular
-expression:
+expression which matches each field in a record:
 END_TEXT
 $markup_code << END_CODE
-[^"\s]\S*|".*?[^\\]
+[^"\s]\S*|".*?[^\\\\\\\\]
 END_CODE
 $markup_text << END_TEXT
-However, I take more pride in my C code and so in the name of efficiency will
-be writing a custom parser.
+This regex can be split into two sections by the pipe (OR) character.
+The first section matches a space separated field: match a non-whitespace,
+non-quotation mark character followed by any non-whitespace characters.
+The second section matches a quoted field: match a quotation mark followed by
+any number of characters until a quotation mark which is not preceded by a
+backslash is found.
+
+To make parsing more efficient in the C code, I will write my own parser.
 Characters are to be parsed sequentially using the following state machine of
 10 states.
 END_TEXT
@@ -913,7 +924,7 @@ echo "START GRAPHIC"
 echo "IMAGE 390 198 state_machine.jpg"
 echo "END"
 $markup_text << END_TEXT
-Parsing begins in the 'Start' state. 'EOF' indicated the End Of File.
+Parsing begins in the 'Start' state. 'EOF' indicates the End Of File.
 When a field is started, a pointer to the current end of the _string_ buffer
 is added to the _fields_ array.
 When a character is added to a field, the character is appended to _string._
@@ -1004,7 +1015,8 @@ $markup_text << END_TEXT
 *Complex File Formats*
 Parsing for the hierarchical _pages_ format is implemented in 'tw.c'.
 I designed this format specifically for this project; it is defined in
-Documented Design.
+Documented Design. Other complex file formats are described in Documented
+Deisign and used throughout the codebase.
 
 *Recursive Algorithm*
 'tw.c' parses the _pages_ format by recursivly calling _parse_graphic._
@@ -1044,9 +1056,8 @@ Polymorphism is also used in 'pager.py', where _Box_ and _Glue_ implement the
 same methods.
 
 *Inheritance*
-Inheritance is used in 'markup_text.py' to define a subtypes of TextStream
-can be defined to change how a stream of text if parsed and converted into
-content.
+Inheritance is used in 'markup_text.py' to define a subtype of TextStream.
+Subtypes can change how a stream of text is parsed and converted into content.
 
 *Shortest Path in Directed Acyclic Graph*
 This shortest path algorithm is similar to Dijkstra's, but is faster since it
@@ -1106,7 +1117,7 @@ Testing in the early stages of my project was achieved with the 'doc.sh' shell
 script.
 This script used the project's executables to generate a PDF that demonstrated
 all the features of current system.
-After each new change change, I could verify the program worked by running the
+After each new change, I could verify the program worked by running the
 shell script and inspecting the PDF.
 The script was updated to use new features as they were added.
 
@@ -1145,7 +1156,7 @@ demonstrated.
 The following shell script generates _content_ for the _pager_ program.
 Below the shell script source, a page is included with content generated by the
 script.
-This page is designed to demonstrate and text the capability of the software.
+This page is designed to demonstrate and test the capability of the software.
 END_TEXT
 
 $markup_code < demo_content.sh
@@ -1184,7 +1195,7 @@ reduce the ascetics of a page, but this is a low-priority issue that does not
 violate any of the initial objectives.
 Footnotes have appeared correctly at the bottom of the intended page.
 A automatically generated contents page has been included in this report.
-A header has been added to the top of each page in the report.
+A header has been added to the top of each page.
 When writing the report, I was able to customize the margin sizes to my needs.
 Standard compliant PDF files have been successfully written for the report with
 embedded fonts and image.
@@ -1194,7 +1205,7 @@ subheader "Improvements"
 
 $markup_text << END_TEXT
 In its current state, the software considers line breaking and page breaking
-to be two separate problems with a separate implantation.
+to be two separate problems with separate implantation.
 This simplifies each individual problem but also limits the software capability
 to solve more complex problems in which line breaking and page breaking can not
 be considered separately (perhaps the width of text is constrained by where it
