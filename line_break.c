@@ -400,7 +400,7 @@ print_text(struct dbuffer *buffer, struct style *style,
       string++;
       continue;
     }
-    if (*string == '"')
+    if (*string == '"' || *string == '\\')
       dbuffer_putc(buffer, '\\');
     if (*string == ' ')
       (*spaces)++;

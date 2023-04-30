@@ -260,7 +260,7 @@ pdf_add_image(FILE *pdf_file, FILE *image_file, struct pdf_xref_table *xref)
   struct jpeg_info jpeg_info;
   const char *color_space;
   if (read_jpeg(image_file, &jpeg_info))
-    return 1;
+    return -1;
   color_space = jpeg_info.components == 3 ? "DeviceRGB" : "DeviceGray";
   fseek(image_file, 0, SEEK_END);
   image_length = ftell(image_file);
@@ -387,7 +387,7 @@ add_pdf_page(struct pdf_page_list *page_list, int page)
   if (page_list->page_count == page_list->pages_allocated) {
     page_list->pages_allocated += 100;
     page_list->page_objs = xrealloc(page_list->page_objs,
-        page_list->pages_allocated);
+        page_list->pages_allocated * sizeof(int));
   }
   page_list->page_objs[page_list->page_count++] = page;
 }
