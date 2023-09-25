@@ -4,320 +4,288 @@
  */
 
 #include <stdio.h>
-#include <string.h>
+#include <stdlib.h>
 #include <unistd.h>
-
 #include "tw.h"
 
-struct text_content {
-  int x, y, font_size, word_spacing;
-  struct dbuffer buffer;
-  char font_name[256];
+#define OBJ_FLAG_PAGE 1
+
+struct pdf_obj {
+  long offset;
+  int flags;
+  struct pdf_obj *next;
 };
 
-static void add_page(FILE *pdf_file, int obj_parent,
-    struct pdf_xref_table *xref, struct pdf_page_list *page_list,
-    struct dbuffer *text_content, struct dbuffer *graphic_content);
-static void write_pdf_escaped_string(struct dbuffer *buffer,
-    const char *string);
-static int parse_text(FILE *input, int x, int y,
-    struct text_content *text_content, struct pdf_resources *resources);
-static int parse_graphic(FILE *input, int origin_x, int origin_y,
-    struct text_content *text_content, struct dbuffer *graphic_content,
-    struct pdf_resources *resources);
+struct pdf_ctx {
+	int obj_count;
+  struct pdf_obj *base;
+	struct pdf_obj *head;
+};
 
-static struct record record;
+static void pdf_write_file_stream(FILE *pdf_file, FILE *data_file);
+static void add_page(FILE *output_file, struct pdf_ctx *pdf, const char *content,
+    long length, int pages_obj);
+static void print_pages(FILE *input_file, FILE *output_file, FILE *font_file,
+    int cwidth, int cheight, const struct font_info* font_info, int font_size);
+
+static int page_width = 595;
+static int page_height = 842;
+static int vertical_margin = 50;
+static int horizontal_margin = 50;
 
 static void
-add_page(FILE *pdf_file, int obj_parent, struct pdf_xref_table *xref,
-    struct pdf_page_list *page_list, struct dbuffer *text_content,
-    struct dbuffer *graphic_content)
+pdf_write_file_stream(FILE *pdf_file, FILE *data_file)
 {
-  int obj_content, obj_page;
-  long length;
-  obj_content = allocate_pdf_obj(xref);
-  obj_page = allocate_pdf_obj(xref);
-
-  dbuffer_printf(text_content, "ET\n");
-  length = text_content->size + graphic_content->size;
-  pdf_start_indirect_obj(pdf_file, xref, obj_content);
-  fprintf(pdf_file, "<< /Length %ld >> stream\n", length);
-  fwrite(text_content->data, 1, text_content->size, pdf_file);
-  fwrite(graphic_content->data, 1, graphic_content->size, pdf_file);
+  long size, i;
+  fseek(data_file, 0, SEEK_END);
+  size = ftell(data_file);
+  fseek(data_file, 0, SEEK_SET);
+  fprintf(pdf_file, "\
+<<\n\
+  /Filter /ASCIIHexDecode\n\
+  /Length %ld\n\
+  /Length1 %ld\n\
+>>\n\
+stream\n", size * 2, size);
+  for (i = 0; i < size; i++)
+    fprintf(pdf_file, "%02x", (unsigned char)fgetc(data_file));
   fprintf(pdf_file, "\nendstream\n");
-  pdf_end_indirect_obj(pdf_file);
-
-  pdf_start_indirect_obj(pdf_file, xref, obj_page);
-  pdf_write_page(pdf_file, obj_parent, obj_content);
-  pdf_end_indirect_obj(pdf_file);
-
-  add_pdf_page(page_list, obj_page);
 }
 
 static void
-write_pdf_escaped_string(struct dbuffer *buffer, const char *string)
+add_page(FILE *output_file, struct pdf_ctx *pdf, const char *content,
+    long length, int pages_obj)
 {
-  dbuffer_putc(buffer, '(');
-  while (*string) {
-    switch (*string) {
+  int content_obj;
+  content_obj = pdf->obj_count++;
+  pdf->head = pdf->head->next = xmalloc(sizeof(struct pdf_obj));
+  pdf->head->offset = ftell(output_file);
+  pdf->head->flags = 0;
+  pdf->head->next = NULL;
+  fprintf(output_file, "%d 0 obj\n", content_obj);
+  fprintf(output_file, "<< /Length %ld >> stream\n", length);
+  fwrite(content, 1, length, output_file);
+  fprintf(output_file, "\nendstream\n");
+  fprintf(output_file, "endobj\n");
+
+  pdf->head = pdf->head->next = xmalloc(sizeof(struct pdf_obj));
+  pdf->head->offset = ftell(output_file);
+  pdf->head->flags = OBJ_FLAG_PAGE;
+  pdf->head->next = NULL;
+  fprintf(output_file, "%d 0 obj\n", pdf->obj_count++);
+  fprintf(output_file, "\
+<<\n\
+  /Type /Page\n\
+  /Parent %d 0 R\n\
+  /Contents %d 0 R\n\
+>>\n", pages_obj, content_obj);
+  fprintf(output_file, "endobj\n");
+}
+
+
+static void
+print_pages(FILE *input_file, FILE *output_file, FILE *font_file, int cwidth,
+    int cheight, const struct font_info* font_info, int font_size)
+{
+  struct pdf_ctx pdf;
+  int i, c;
+  struct pdf_obj *o;
+  int font_program_obj, font_widths_obj, font_descriptor_obj, font_obj;
+  int resources_obj, pages_obj, catalog_obj;
+  struct pdf_obj *pages_obj_ref;
+  struct dbuffer content;
+  int row, colunm, line, page;
+  long xref_offset;
+
+  pdf.obj_count = 1;
+  pdf.base = pdf.head = xmalloc(sizeof(struct pdf_obj));
+  pdf.base->offset = 0;
+  pdf.base->flags = 0;
+  pdf.base->next = NULL;
+
+  fprintf(output_file, "%%PDF-1.7\n");
+
+  font_program_obj = pdf.obj_count++;
+  pdf.head = pdf.head->next = xmalloc(sizeof(struct pdf_obj));
+  pdf.head->offset = ftell(output_file);
+  pdf.head->flags = 0;
+  pdf.head->next = NULL;
+  fprintf(output_file, "%d 0 obj\n", font_program_obj);
+  pdf_write_file_stream(output_file, font_file);
+  fprintf(output_file, "endobj\n");
+
+  font_widths_obj = pdf.obj_count++;
+  pdf.head = pdf.head->next = xmalloc(sizeof(struct pdf_obj));
+  pdf.head->offset = ftell(output_file);
+  pdf.head->flags = 0;
+  pdf.head->next = NULL;
+  fprintf(output_file, "%d 0 obj\n", font_widths_obj);
+  fprintf(output_file, "[\n ");
+  for (i = 0; i < 256; i++)
+    fprintf(output_file, " %d", font_info->char_widths[i]);
+  fprintf(output_file, "\n]\n");
+  fprintf(output_file, "endobj\n");
+
+  font_descriptor_obj = pdf.obj_count++;
+  pdf.head = pdf.head->next = xmalloc(sizeof(struct pdf_obj));
+  pdf.head->offset = ftell(output_file);
+  pdf.head->flags = 0;
+  pdf.head->next = NULL;
+  fprintf(output_file, "%d 0 obj\n", font_descriptor_obj);
+  fprintf(output_file, "\
+<<\n\
+  /Type /FontDescriptor\n\
+  /FontName /MonoFont\n\
+  /FontFile2 %d 0 R\n\
+  /Flags 6\n\
+  /FontBBox [%d, %d, %d, %d]\n\
+  /ItalicAngle -10\n\
+  /Ascent 255\n\
+  /Descent 255\n\
+  /CapHeight 255\n\
+  /StemV 10\n\
+>>\n", font_program_obj, font_info->x_min, font_info->y_min, font_info->x_max,
+      font_info->y_max);
+  fprintf(output_file, "endobj\n");
+
+  font_obj = pdf.obj_count++;
+  pdf.head = pdf.head->next = xmalloc(sizeof(struct pdf_obj));
+  pdf.head->offset = ftell(output_file);
+  pdf.head->flags = 0;
+  pdf.head->next = NULL;
+  fprintf(output_file, "%d 0 obj\n", font_obj);
+  fprintf(output_file, "\
+<<\n\
+  /Type /Font\n\
+  /Subtype /TrueType\n\
+  /BaseFont /MonoFont\n\
+  /FirstChar 0\n\
+  /LastChar 255\n\
+  /Widths %d 0 R\n\
+  /FontDescriptor %d 0 R\n\
+>>\n", font_widths_obj, font_descriptor_obj);
+  fprintf(output_file, "endobj\n");
+
+  resources_obj = pdf.obj_count++;
+  pdf.head = pdf.head->next = xmalloc(sizeof(struct pdf_obj));
+  pdf.head->offset = ftell(output_file);
+  pdf.head->flags = 0;
+  pdf.head->next = NULL;
+  fprintf(output_file, "%d 0 obj\n", resources_obj);
+  fprintf(output_file, "\
+<<\n\
+  /Font <<\n\
+    /MonoFont %d 0 R\n\
+  >>\n\
+>>\n", font_obj);
+  fprintf(output_file, "endobj\n");
+
+  pages_obj = pdf.obj_count++;
+  pages_obj_ref = pdf.head = pdf.head->next = xmalloc(sizeof(struct pdf_obj));
+  pdf.head->offset = 0;
+  pdf.head->flags = 0;
+  pdf.head->next = NULL;
+
+  /* TODO: ADD PAGES. */
+  dbuffer_init(&content, 1024 * 8, 1024 * 4);
+  dbuffer_printf(&content, "BT\n");
+  dbuffer_printf(&content, "/MonoFont %d Tf\n", font_size);
+  page = row = colunm = 0;
+  line = 1;
+  while ( (c = fgetc(input_file)) != EOF) {
+    if (c == '\n') {
+      if (colunm > 0)
+        dbuffer_printf(&content, ") Tj\n");
+      line++;
+      row++;
+      colunm = 0;
+      if (row >= cheight) {
+        row = 0;
+        page++;
+        dbuffer_printf(&content, "ET");
+        add_page(output_file, &pdf, content.data, content.size, pages_obj);
+        content.size = 0;
+        dbuffer_printf(&content, "BT\n");
+        dbuffer_printf(&content, "/MonoFont %d Tf\n", font_size);
+      }
+      continue;
+    }
+    if (colunm == 0) {
+      dbuffer_printf(&content, "1 0 0 1 %d %d Tm\n(", horizontal_margin,
+          842 - vertical_margin - row * font_size);
+    }
+    if (colunm >= cwidth) {
+      fprintf(stderr, "Warning: character width exceeded on line %d\n", line);
+    }
+    switch (c) {
       case '(':
       case ')':
       case '\\':
-        dbuffer_putc(buffer, '\\');
+        dbuffer_putc(&content, '\\');
       default:
-        dbuffer_putc(buffer, *string);
+        dbuffer_putc(&content, c);
     }
-    string++;
+    colunm++;
   }
-  dbuffer_putc(buffer, ')');
-}
-
-static int
-parse_text(FILE *input, int x, int y, struct text_content *text_content,
-    struct pdf_resources *resources)
-{
-  int parse_result, arg1, font_size, word_spacing;
-  char font_name[256];
-  font_size = 0;
-  font_name[0] = '\0';
-  word_spacing = 0;
-  dbuffer_printf(&text_content->buffer, "1 0 0 1 %d %d Tm", x, y);
-  for (;;) {
-    parse_result = parse_record(input, &record);
-    if (parse_result == EOF) {
-      fprintf(stderr, "Text not ended before end of file.\n");
-      return 1;
-    }
-    if (parse_result)
-      continue;
-    if (strcmp(record.fields[0], "END") == 0)
-      break;
-    if (strcmp(record.fields[0], "FONT") == 0) {
-      if (record.field_count != 3) {
-        fprintf(stderr, "Text FONT command must take 2 arguments.\n");
-        continue;
-      }
-      if (strlen(record.fields[1]) >= 256) {
-        fprintf(stderr, "Font name too long: '%s'\n", record.fields[1]);
-        continue;
-      }
-      if (!is_font_name_valid(record.fields[1])) {
-        fprintf(stderr, "Font name contains illegal characters: '%s'\n",
-            record.fields[1]);
-        continue;
-      }
-      if (str_to_int(record.fields[2], &arg1)) {
-        fprintf(stderr, "Text FONT command's 2nd argument must be integer.\n");
-        continue;
-      }
-      strcpy(font_name, record.fields[1]);
-      font_size = arg1;
-      include_font_resource(resources, font_name);
-      continue;
-    }
-    if (strcmp(record.fields[0], "SPACE") == 0) {
-      if (record.field_count != 2) {
-        fprintf(stderr, "Text SPACE command must take 1 arguments.\n");
-        continue;
-      }
-      if (str_to_int(record.fields[1], &arg1)) {
-        fprintf(stderr, "Text SPACE command's argument must be integer.\n");
-        continue;
-      }
-      word_spacing = arg1;
-      continue;
-    }
-    if (strcmp(record.fields[0], "STRING") == 0) {
-      if (record.field_count != 2) {
-        fprintf(stderr, "Text STRING command must take 1 argument.\n");
-        continue;
-      }
-      if (*font_name == '\0') {
-        fprintf(stderr, "Text must specify font.\n");
-        continue;
-      }
-      if (strcmp(text_content->font_name, font_name)
-          || text_content->font_size != font_size) {
-        dbuffer_printf(&text_content->buffer, " /%s %d Tf", font_name,
-            font_size);
-        strcpy(text_content->font_name, font_name);
-        text_content->font_size = font_size;
-      }
-      if (word_spacing != text_content->word_spacing) {
-        dbuffer_printf(&text_content->buffer, " %f Tw",
-            (float)word_spacing / 1000);
-        text_content->word_spacing = word_spacing;
-      }
-      dbuffer_putc(&text_content->buffer, ' ');
-      write_pdf_escaped_string(&text_content->buffer, record.fields[1]);
-      dbuffer_printf(&text_content->buffer, " Tj");
-      continue;
-    }
-    fprintf(stderr, "Invalid text command: '%s'\n", record.fields[0]);
+  if (page == 0 || row != 0 || colunm != 0) {
+    dbuffer_printf(&content, "ET");
+    add_page(output_file, &pdf, content.data, content.size, pages_obj);
   }
-  dbuffer_putc(&text_content->buffer, '\n');
-  return 0;
-}
+  dbuffer_free(&content);
 
-static int
-parse_graphic(FILE *input, int origin_x, int origin_y,
-    struct text_content *text_content, struct dbuffer *graphic_content,
-    struct pdf_resources *resources)
-{
-  int parse_result, x, y, arg1, arg2, image_id;
-  x = origin_x;
-  y = origin_y;
-  for (;;) {
-    parse_result = parse_record(input, &record);
-    if (parse_result == EOF) {
-      fprintf(stderr, "Graphic not ended before end of file.\n");
-      return 1;
-    }
-    if (parse_result)
-      continue;
-    if (strcmp(record.fields[0], "END") == 0)
-      break;
-    if (strcmp(record.fields[0], "MOVE") == 0) {
-      if (record.field_count != 3) {
-        fprintf(stderr, "Graphic MOVE command must take 2 arguments.\n");
-        continue;
-      }
-      if (str_to_int(record.fields[1], &arg1)
-          || str_to_int(record.fields[2], &arg2)) {
-        fprintf(stderr, "Graphic MOVE command takes only integer arguments.\n");
-        continue;
-      }
-      x = origin_x + arg1;
-      y = origin_y + arg2;
-      continue;
-    }
-    if (strcmp(record.fields[0], "START") == 0) {
-      if (record.field_count != 2) {
-        fprintf(stderr, "START command must take one argument.\n");
-        return 1;
-      }
-      if (strcmp(record.fields[1], "GRAPHIC") == 0) {
-        if (parse_graphic(input, x, y, text_content, graphic_content,
-              resources))
-          return 1;
-        continue;
-      }
-      if (strcmp(record.fields[1], "TEXT") == 0) {
-        if (parse_text(input, x, y, text_content, resources))
-          return 1;
-        continue;
-      }
-      fprintf(stderr, "Invalid graphic START command argument: '%s'\n",
-          record.fields[1]);
-      return 1;
-    }
-    if (strcmp(record.fields[0], "IMAGE") == 0) {
-      if (record.field_count != 4) {
-        fprintf(stderr, "IMAGE command must take 3 arguments.\n");
-        continue;
-      }
-      if (str_to_int(record.fields[1], &arg1)
-          || str_to_int(record.fields[2], &arg2)) {
-        fprintf(stderr,
-            "IMAGE command's 1st and 2nd arguments must be integer.\n");
-        continue;
-      }
-      image_id = include_image_resource(resources, record.fields[3]);
-      dbuffer_printf(graphic_content, "q\n");
-      dbuffer_printf(graphic_content, "  %d 0 0 %d %d %d cm\n", arg1, arg2, x,
-          y);
-      dbuffer_printf(graphic_content, "  /Img%d Do\n", image_id);
-      dbuffer_printf(graphic_content, "Q\n");
-      continue;
-    }
-    fprintf(stderr, "Invalid graphic command: '%s'\n", record.fields[0]);
-  }
-  return 0;
-}
-
-int
-print_pages(FILE *pages_file, FILE *typeface_file, FILE *pdf_file)
-{
-  int ret, parse_result;
-  int obj_resources, obj_page_list, obj_catalog;
-  struct pdf_xref_table xref_table;
-  struct pdf_page_list page_list;
-  struct pdf_resources resources;
-  struct text_content text_content;
-  struct dbuffer graphic_content;
-  ret = 0;
-  init_pdf_xref_table(&xref_table);
-  init_pdf_page_list(&page_list);
-  init_pdf_resources(&resources);
-  obj_resources = allocate_pdf_obj(&xref_table);
-  obj_page_list = allocate_pdf_obj(&xref_table);
-  obj_catalog = allocate_pdf_obj(&xref_table);
-  pdf_write_header(pdf_file);
-
-  text_content.x = 0;
-  text_content.y = 0;
-  text_content.font_size = 0;
-  text_content.font_name[0] = '\0';
-  dbuffer_init(&text_content.buffer, 1024 * 32, 1024 * 32);
-  dbuffer_printf(&text_content.buffer, "BT\n");
-  dbuffer_init(&graphic_content, 1024 * 4, 1024 * 4);
-  init_record(&record);
-  for (;;) {
-    parse_result = parse_record(pages_file, &record);
-    if (parse_result == EOF)
-      break;
-    if (parse_result)
-      continue;
-    if (strcmp(record.fields[0], "START") == 0) {
-      if (record.field_count != 2) {
-        fprintf(stderr, "Pages START command must take 1 argument.\n");
-        ret = 1;
-        break;
-      }
-      if (strcmp(record.fields[1], "PAGE") == 0) {
-        if (parse_graphic(pages_file, 0, 0, &text_content, &graphic_content,
-              &resources)) {
-          ret = 1;
-          break;
-        }
-        add_page(pdf_file, obj_page_list, &xref_table, &page_list,
-            &text_content.buffer, &graphic_content);
-        text_content.x = 0;
-        text_content.y = 0;
-        text_content.font_size = 0;
-        text_content.font_name[0] = '\0';
-        text_content.buffer.size = 0;
-        dbuffer_printf(&text_content.buffer, "BT\n");
-        graphic_content.size = 0;
-        graphic_content.data[0] = '\0';
-        continue;
-      }
-      fprintf(stderr, "Invalid document START command argument: '%s'\n",
-          record.fields[1]);
-      ret = 1;
-      break;
+  pages_obj_ref->offset = ftell(output_file);
+  fprintf(output_file, "%d 0 obj\n", pages_obj);
+  fprintf(output_file, "\
+<<\n\
+  /Type /Pages\n\
+  /Resources %d 0 R\n\
+  /Kids [\n", resources_obj);
+  c = 0;
+  for (o = pdf.base, i = 0; o; o = o->next, i++) {
+    if (o->flags & OBJ_FLAG_PAGE) {
+      fprintf(output_file, "    %d 0 R\n", i);
+      c++;
     }
   }
-  dbuffer_free(&text_content.buffer);
-  free_record(&record);
+  /* A4 portrait is 595x842. */
+  fprintf(output_file, "\
+  ]\n\
+  /Count %d\n\
+  /MediaBox [0 0 595 842]\n\
+>>\n", c);
+  fprintf(output_file, "endobj\n");
 
-  pdf_add_resources(pdf_file, typeface_file, obj_resources, &resources,
-      &xref_table);
+  catalog_obj = pdf.obj_count++;
+  pdf.head = pdf.head->next = xmalloc(sizeof(struct pdf_obj));
+  pdf.head->offset = ftell(output_file);
+  pdf.head->flags = 0;
+  pdf.head->next = NULL;
+  fprintf(output_file, "%d 0 obj\n", catalog_obj);
+  fprintf(output_file, "\
+<<\n\
+  /Type /Catalog\n\
+  /Pages %d 0- R\n\
+>>\n", pages_obj);
+  fprintf(output_file, "endobj\n");
 
-  pdf_start_indirect_obj(pdf_file, &xref_table, obj_page_list);
-  pdf_write_pages(pdf_file, obj_resources, page_list.page_count,
-      page_list.page_objs);
-  pdf_end_indirect_obj(pdf_file);
+  xref_offset = ftell(output_file);
+  fprintf(output_file, "\
+xref\n\
+0 %d\n\
+000000000 65535 f \n", pdf.obj_count);
+  for (o = pdf.base->next; o; o = o->next)
+    fprintf(output_file, "%09ld 00000 n \n", o->offset);
+  fprintf(output_file, "\
+trailer << /Size %d /Root %d 0 R >>\n\
+startxref\n\
+%ld\n\
+%%%%EOF", pdf.obj_count, catalog_obj, xref_offset);
 
-  pdf_start_indirect_obj(pdf_file, &xref_table, obj_catalog);
-  pdf_write_catalog(pdf_file, obj_page_list);
-  pdf_end_indirect_obj(pdf_file);
-
-  pdf_add_footer(pdf_file, &xref_table, obj_catalog);
-  free_pdf_page_list(&page_list);
-  free_pdf_resources(&resources);
-  free_pdf_xref_table(&xref_table);
-  return ret;
+  for (o = pdf.base; o;) {
+    pdf.base = o->next;
+    free(o);
+    o = pdf.base;
+  }
 }
 
 int
@@ -325,8 +293,13 @@ main(int argc, char **argv)
 {
   int opt;
   const char *output_file_name;
-  FILE *pages_file, *typeface_file, *pdf_file;
+  const char *font_file_name;
+  FILE *input_file, *output_file, *font_file;
+  struct font_info font_info;
+  int cwidth, cheight;
+  int font_size = 10;
   output_file_name = "./output.pdf";
+  font_file_name = "./fonts/cmu.typewriter-text-regular.ttf";
   while ( (opt = getopt(argc, argv, "o:")) != -1) {
     switch (opt) {
       case 'o':
@@ -337,20 +310,31 @@ main(int argc, char **argv)
         return 1;
     }
   }
-  pages_file = stdin;
-  typeface_file = fopen("./typeface", "r");
-  pdf_file = fopen(output_file_name, "w");
-  if (typeface_file == NULL) {
-    fprintf(stderr, "tw: Failed to open typeface file.\n");
-    return 1;
-  }
-  if (pdf_file == NULL) {
+  input_file = stdin;
+  output_file = fopen(output_file_name, "w");
+  font_file = fopen(font_file_name, "r");
+  if (output_file == NULL) {
     fprintf(stderr, "tw: Failed to open output file '%s'.\n", output_file_name);
     return 1;
   }
-  print_pages(pages_file, typeface_file, pdf_file);
-  fclose(pages_file);
-  fclose(typeface_file);
-  fclose(pdf_file);
+  if (font_file == NULL) {
+    fprintf(stderr, "tw: Failed to open font file '%s'.\n", font_file_name);
+    return 1;
+  }
+  if (read_ttf(font_file, &font_info)) {
+    fprintf(stderr, "tw: Failed to parse font file '%s'.\n", font_file_name);
+    return 1;
+  }
+  cwidth = ((page_width - horizontal_margin * 2) * 1000)
+    / (font_info.char_widths[(unsigned char)'A'] * font_size);
+  cheight = (page_height - vertical_margin * 2) / font_size;
+  printf("%dx%d\n", cwidth, cheight);
+
+  print_pages(input_file, output_file, font_file, cwidth, cheight, &font_info,
+    font_size);
+
+  fclose(input_file);
+  fclose(output_file);
+  fclose(font_file);
   return 0;
 }
