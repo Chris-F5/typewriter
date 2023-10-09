@@ -3,13 +3,6 @@
  * See LICENSE for license details.
  */
 
-/*
- * fontconfig notes
- * `fc-match mono`
- * fontformat=TrueType
- * `spacing` property not present on all fonts. (possibly mono width).
- */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
