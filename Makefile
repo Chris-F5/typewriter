@@ -1,8 +1,9 @@
 CC=gcc
 CFLAGS=-g -Wall
+LDFLAGS=-lfontconfig
 
 tw: tw.o utils.o dbuffer.o ttf.o
-	$(CC) $^ -o $@
+	$(CC) $(LDFLAGS) $^ -o $@
 
 tw.o: tw.c tw.h
 	$(CC) $(CFLAGS) -c $< -o $@

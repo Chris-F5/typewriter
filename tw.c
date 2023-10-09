@@ -3,9 +3,18 @@
  * See LICENSE for license details.
  */
 
+/*
+ * fontconfig notes
+ * `fc-match mono`
+ * fontformat=TrueType
+ * `spacing` property not present on all fonts. (possibly mono width).
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
+#include <fontconfig/fontconfig.h>
 #include "tw.h"
 
 #define OBJ_FLAG_PAGE 1
@@ -22,6 +31,7 @@ struct pdf_ctx {
 	struct pdf_obj *head;
 };
 
+static char *default_font(const char *pattern_name);
 static void pdf_write_file_stream(FILE *pdf_file, FILE *data_file);
 static void add_page(FILE *output_file, struct pdf_ctx *pdf, const char *content,
     long length, int pages_obj);
@@ -32,6 +42,42 @@ static int page_width = 595;
 static int page_height = 842;
 static int vertical_margin = 50;
 static int horizontal_margin = 50;
+
+static char *
+default_font(const char *pattern_name)
+{
+  FcResult fc_res;
+  FcPattern *pattern, *font;
+  FcChar8 *string;
+  int char_width;
+  char *file;
+
+  FcInit();
+  pattern = FcNameParse((const FcChar8 *)pattern_name);
+  FcConfigSubstitute(NULL, pattern, FcMatchPattern);
+  FcDefaultSubstitute(pattern);
+  font = FcFontMatch(NULL, pattern, &fc_res);
+  if (fc_res || !font) {
+    fprintf(stderr, "could not find monospace font.\n");
+    exit(1);
+  }
+  if (FcPatternGetString(font, FC_FILE, 0, &string) != FcResultMatch) {
+    fprintf(stderr, "failed to get font file path.\n");
+    exit(1);
+  }
+  if (FcPatternGetInteger(font, FC_WIDTH, 0, &char_width) != FcResultMatch) {
+    fprintf(stderr, "failed to get font width.\n");
+    exit(1);
+  }
+
+  file = xmalloc(strlen((char *)string) + 1);
+  strcpy(file, (char *)string);
+
+  FcPatternDestroy(pattern);
+  FcPatternDestroy(font);
+  FcFini();
+  return file;
+}
 
 static void
 pdf_write_file_stream(FILE *pdf_file, FILE *data_file)
@@ -293,13 +339,15 @@ main(int argc, char **argv)
 {
   int opt;
   const char *output_file_name;
-  const char *font_file_name;
+  char *font_file_name;
   FILE *input_file, *output_file, *font_file;
   struct font_info font_info;
   int cwidth, cheight;
   int font_size = 10;
   output_file_name = "./output.pdf";
-  font_file_name = "./fonts/cmu.typewriter-text-regular.ttf";
+  /* font_file_name = "/usr/share/fonts/TTF/DejaVuSansMono.ttf"; */
+  font_file_name = default_font("monospace");
+  printf("located font %s\n", font_file_name);
   while ( (opt = getopt(argc, argv, "o:")) != -1) {
     switch (opt) {
       case 'o':
@@ -325,6 +373,7 @@ main(int argc, char **argv)
     fprintf(stderr, "tw: Failed to parse font file '%s'.\n", font_file_name);
     return 1;
   }
+  printf("width: %d\n", font_info.char_widths[(unsigned char)'A']);
   cwidth = ((page_width - horizontal_margin * 2) * 1000)
     / (font_info.char_widths[(unsigned char)'A'] * font_size);
   cheight = (page_height - vertical_margin * 2) / font_size;
@@ -333,6 +382,7 @@ main(int argc, char **argv)
   print_pages(input_file, output_file, font_file, cwidth, cheight, &font_info,
     font_size);
 
+  free(font_file_name);
   fclose(input_file);
   fclose(output_file);
   fclose(font_file);
