@@ -1,9 +1,16 @@
 Typewriter
 ----------
 
-UNDER DEVELOPMENT
+Convert text to PDF.
 
-A document formatting system.
-* Written in C.
-* No library dependencies.
-* Outputs PDF file.
+Example:
+	# Make a PDF calendar.
+	cal -y | tw -o calendar.pdf
+
+- Fontconfig is the only runtime dependency.
+- Automatic page breaking.
+- Typewriter uses a custom TrueType parser and PDF builder.
+- Only ASCII characters are supported.
+- Only Monospace, TrueType fonts are supported.
+
+See LICENSE for details.
