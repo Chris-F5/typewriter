@@ -1,21 +1,10 @@
-CC=gcc
-CFLAGS=-g -Wall
-LDFLAGS=-lfontconfig
+.PHONY: run clean
 
-tw: tw.o utils.o dbuffer.o ttf.o
-	$(CC) $(LDFLAGS) $^ -o $@
+tw: tw.ml
+	ocamlopt -o $@ $<
 
-tw.o: tw.c tw.h
-	$(CC) $(CFLAGS) -c $< -o $@
+run:
+	ocaml tw.ml
 
-line_break.o: line_break.c tw.h
-	$(CC) $(CFLAGS) -c $< -o $@
-
-utils.o: utils.c tw.h
-	$(CC) $(CFLAGS) -c $< -o $@
-
-dbuffer.o: dbuffer.c tw.h
-	$(CC) $(CFLAGS) -c $< -o $@
-
-ttf.o: ttf.c tw.h
-	$(CC) $(CFLAGS) -c $< -o $@
+clean:
+	rm -rf tw tw.cmi tw.cmx tw.o
