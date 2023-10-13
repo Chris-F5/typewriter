@@ -1,10 +1,10 @@
-.PHONY: run clean
+.PHONY: toplevel clean
 
 tw: tw.ml
-	ocamlopt -o $@ $<
+	ocamlfind ocamlopt -linkpkg -package camlpdf -o $@ $<
 
-run:
-	ocaml tw.ml
+toplevel:
+
 
 clean:
 	rm -rf tw tw.cmi tw.cmx tw.o
