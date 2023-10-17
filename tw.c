@@ -19,9 +19,9 @@ struct pdf_obj {
 };
 
 struct pdf_ctx {
-	int obj_count;
+  int obj_count;
   struct pdf_obj *base;
-	struct pdf_obj *head;
+  struct pdf_obj *head;
 };
 
 static char *default_font(const char *pattern_name);
