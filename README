@@ -15,6 +15,6 @@ Project Features/Problems:
 	- Only Monospace, TrueType fonts are supported.
 
 Project Goals:
-	- Switch to existing Truetype and PDF implementations.
+	- Separate PDF library from application.
 	- Simple codebase that can be patched for additional features.
 	- Support unicode characters.
