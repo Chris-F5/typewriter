@@ -1,21 +1,18 @@
 CC=gcc
 CFLAGS=-g -Wall
-LDFLAGS=-lfontconfig
+LDFLAGS=
 
-tw: tw.o utils.o dbuffer.o ttf.o
+tw: tw.o twpdf.o twwrite.o utils.o
 	$(CC) $(LDFLAGS) $^ -o $@
 
-tw.o: tw.c tw.h
+tw.o: tw.c twpdf.h utils.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
-line_break.o: line_break.c tw.h
+twpdf.o: twpdf.c twpdf.h utils.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
-utils.o: utils.c tw.h
+twwrite.o: twwrite.c twpdf.h utils.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
-dbuffer.o: dbuffer.c tw.h
-	$(CC) $(CFLAGS) -c $< -o $@
-
-ttf.o: ttf.c tw.h
+utils.o: utils.c utils.h
 	$(CC) $(CFLAGS) -c $< -o $@
