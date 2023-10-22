@@ -22,12 +22,13 @@ allocate_obj(struct pdf *pdf, size_t size)
 void
 pdf_init_empty(struct pdf *pdf)
 {
-  pdf->next_obj_num = 0;
+  pdf->next_obj_num = 1;
   pdf->defs = NULL;
   pdf->root = NULL;
   pdf->obj_allocated = 1000;
   pdf->obj_count = 0;
   pdf->objs = xmalloc(pdf->obj_allocated * sizeof(void *));
+  pdf->objs[0] = NULL;
 }
 
 void
@@ -53,12 +54,12 @@ pdf_create_boolean(struct pdf *pdf, int value)
   return obj;
 }
 
-struct pdf_obj_numeric *
-pdf_create_numeric(struct pdf *pdf, double value)
+struct pdf_obj_integer *
+pdf_create_integer(struct pdf *pdf, int value)
 {
-  struct pdf_obj_numeric *obj;
-  obj = allocate_obj(pdf, sizeof(struct pdf_obj_numeric));
-  obj->type = PDF_OBJ_NUMERIC;
+  struct pdf_obj_integer *obj;
+  obj = allocate_obj(pdf, sizeof(struct pdf_obj_integer));
+  obj->type = PDF_OBJ_INTEGER;
   obj->value = value;
   return obj;
 }
@@ -139,12 +140,12 @@ pdf_prepend_array(struct pdf *pdf, struct pdf_obj_array *array,
 
 struct pdf_obj_dictionary *
 pdf_prepend_dictionary(struct pdf *pdf, struct pdf_obj_dictionary *dictionary,
-    struct pdf_obj_name *key, struct pdf_obj *value)
+    const char *key, struct pdf_obj *value)
 {
   struct pdf_obj_dictionary *head;
   head = allocate_obj(pdf, sizeof(struct pdf_obj_dictionary));
   head->type = PDF_OBJ_DICTIONARY;
-  head->key = key;
+  head->key = pdf_create_name(pdf, key);
   head->value = value;
   head->tail = dictionary;
   return head;

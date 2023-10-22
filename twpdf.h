@@ -14,7 +14,7 @@
 
 enum pdf_obj_type {
   PDF_OBJ_BOOLEAN         = 0,
-  PDF_OBJ_NUMERIC         = 1,
+  PDF_OBJ_INTEGER         = 1,
   PDF_OBJ_STRING          = 2,
   PDF_OBJ_NAME            = 3,
   PDF_OBJ_ARRAY           = 4,
@@ -34,9 +34,9 @@ struct pdf_obj_boolean {
   int value;
 };
 
-struct pdf_obj_numeric {
+struct pdf_obj_integer {
   enum pdf_obj_type type;
-  double value;
+  int value;
 };
 
 struct pdf_obj_string {
@@ -93,7 +93,7 @@ void pdf_init_empty(struct pdf *pdf);
 void pdf_free(struct pdf *pdf);
 
 struct pdf_obj_boolean         *pdf_create_boolean(struct pdf *pdf, int value);
-struct pdf_obj_numeric         *pdf_create_numeric(struct pdf *pdf, double value);
+struct pdf_obj_integer         *pdf_create_integer(struct pdf *pdf, int value);
 struct pdf_obj_string          *pdf_create_string(struct pdf *pdf, const char *string);
 struct pdf_obj_name            *pdf_create_name(struct pdf *pdf, const char *name);
 struct pdf_obj_array           *pdf_create_array(struct pdf *pdf);
@@ -104,7 +104,7 @@ struct pdf_obj_indirect        *pdf_allocate_indirect_obj(struct pdf *pdf);
 struct pdf_obj_array *pdf_prepend_array(struct pdf *pdf,
     struct pdf_obj_array *array, struct pdf_obj *obj);
 struct pdf_obj_dictionary *pdf_prepend_dictionary(struct pdf *pdf,
-    struct pdf_obj_dictionary *dictionary, struct pdf_obj_name *key,
+    struct pdf_obj_dictionary *dictionary, const char *key,
     struct pdf_obj *value);
 
 void pdf_define_obj(struct pdf *pdf, struct pdf_obj *obj,

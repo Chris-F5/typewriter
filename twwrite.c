@@ -7,11 +7,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "twpdf.h"
 #include "utils.h"
+#include "twpdf.h"
 
 static void write_obj_boolean(FILE *file, struct pdf_obj_boolean *obj);
-static void write_obj_numeric(FILE *file, struct pdf_obj_numeric *obj);
+static void write_obj_integer(FILE *file, struct pdf_obj_integer *obj);
 static void write_obj_string(FILE *file, struct pdf_obj_string *obj);
 static void write_obj_name(FILE *file, struct pdf_obj_name *obj);
 static void write_obj_array(FILE *file, struct pdf_obj_array *obj);
@@ -28,9 +28,9 @@ write_obj_boolean(FILE *file, struct pdf_obj_boolean *obj)
 }
 
 static void
-write_obj_numeric(FILE *file, struct pdf_obj_numeric *obj)
+write_obj_integer(FILE *file, struct pdf_obj_integer *obj)
 {
-  fprintf(file, "%lf", obj->value);
+  fprintf(file, "%d", obj->value);
 }
 
 static void
@@ -142,8 +142,8 @@ write_obj(FILE *file, struct pdf_obj *obj)
   case PDF_OBJ_BOOLEAN:
     write_obj_boolean(file, (struct pdf_obj_boolean *)obj);
     break;
-  case PDF_OBJ_NUMERIC:
-    write_obj_numeric(file, (struct pdf_obj_numeric *)obj);
+  case PDF_OBJ_INTEGER:
+    write_obj_integer(file, (struct pdf_obj_integer *)obj);
     break;
   case PDF_OBJ_STRING:
     write_obj_string(file, (struct pdf_obj_string *)obj);
@@ -187,7 +187,7 @@ pdf_write(struct pdf *pdf, const char *fname)
     exit(1);
   }
   /* Header */
-  fprintf(file, "%%PDF_1.7\n");
+  fprintf(file, "%%PDF-1.7\n");
   /* Body */
   xref_obj_offsets = xmalloc(pdf->next_obj_num * sizeof(long));
   memset(xref_obj_offsets, 0, pdf->next_obj_num * sizeof(long));
@@ -199,14 +199,15 @@ pdf_write(struct pdf *pdf, const char *fname)
     xref_obj_offsets[def->obj_num] = ftell(file);
     fprintf(file, "%d 0 obj\n", def->obj_num);
     write_obj(file, def->obj);
-    fprintf(file, "endobj\n");
+    fprintf(file, "\nendobj\n");
   }
   /* Cross-Reference Table */
   xref_offset = ftell(file);
   fprintf(file, "xref\n");
   fprintf(file, "0 %d\n", pdf->next_obj_num);
-  for (i = 0; i < pdf->next_obj_num; i++)
-    fprintf(file, "%09ld 00000 %c \n", xref_obj_offsets[i],
+  fprintf(file, "0000000000 65535 f \n");
+  for (i = 1; i < pdf->next_obj_num; i++)
+    fprintf(file, "%010ld 00000 %c \n", xref_obj_offsets[i],
         xref_obj_offsets[i] ? 'n' : 'f');
   /* Trailer */
   fprintf(file, "trailer << /Size %d /Root %d 0 R >>\n", pdf->next_obj_num,
