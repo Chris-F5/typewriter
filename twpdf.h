@@ -4,12 +4,8 @@
  */
 
 /*
- * 8 Basic Objects (7.3.1):
- * Boolean, Integer/Real, String, Name, Array, Dictionary, Stream, Null
- *
- * File Structure (7.5):
- *   Header, Body, Cross-reference table, Trailer
- * Generally, lines are limited to 255 chars.
+ * TODO:
+ * Generally, lines are limited to 255 chars (7.5).
  */
 
 enum pdf_obj_type {
@@ -19,7 +15,7 @@ enum pdf_obj_type {
   PDF_OBJ_NAME            = 3,
   PDF_OBJ_ARRAY           = 4,
   PDF_OBJ_DICTIONARY      = 5,
-  PDF_OBJ_GRAPHICS_STREAM = 6,
+  PDF_OBJ_STREAM          = 6,
   PDF_OBJ_NULL            = 7,
   PDF_OBJ_INDIRECT        = 8,
 };
@@ -62,10 +58,10 @@ struct pdf_obj_dictionary {
   struct pdf_obj_dictionary *tail;
 };
 
-/* > All streams shall be indirect objects (7.3.8.1). */
-struct pdf_obj_graphics_stream {
+struct pdf_obj_stream {
   enum pdf_obj_type type;
-  /* ... */
+  long size;
+  char *bytes;
 };
 
 struct pdf_obj_indirect {
@@ -98,7 +94,6 @@ struct pdf_obj_string          *pdf_create_string(struct pdf *pdf, const char *s
 struct pdf_obj_name            *pdf_create_name(struct pdf *pdf, const char *name);
 struct pdf_obj_array           *pdf_create_array(struct pdf *pdf);
 struct pdf_obj_dictionary      *pdf_create_dictionary(struct pdf *pdf);
-struct pdf_obj_graphics_stream *pdf_create_graphics_stream(struct pdf *pdf);
 struct pdf_obj_indirect        *pdf_allocate_indirect_obj(struct pdf *pdf);
 
 struct pdf_obj_array *pdf_prepend_array(struct pdf *pdf,
@@ -107,8 +102,10 @@ struct pdf_obj_dictionary *pdf_prepend_dictionary(struct pdf *pdf,
     struct pdf_obj_dictionary *dictionary, const char *key,
     struct pdf_obj *value);
 
-void pdf_define_obj(struct pdf *pdf, struct pdf_obj *obj,
-    struct pdf_obj_indirect *ref, int is_root);
+void pdf_define_obj(struct pdf *pdf, struct pdf_obj_indirect *ref,
+    struct pdf_obj *obj, int is_root);
+void pdf_define_stream(struct pdf *pdf, struct pdf_obj_indirect *ref, long size,
+    char *bytes);
 
 /* twwrite.c */
 void pdf_write(struct pdf *pdf, const char *fname);

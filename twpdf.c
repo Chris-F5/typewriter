@@ -9,6 +9,9 @@
 #include "twpdf.h"
 #include "utils.h"
 
+static void * allocate_obj(struct pdf *pdf, size_t size);
+static void free_obj(struct pdf_obj *obj);
+
 static void *
 allocate_obj(struct pdf *pdf, size_t size)
 {
@@ -17,6 +20,19 @@ allocate_obj(struct pdf *pdf, size_t size)
     pdf->objs = xrealloc(pdf->objs, pdf->obj_allocated * sizeof(void *));
   }
   return pdf->objs[pdf->obj_count++] = xmalloc(size);
+}
+
+static void
+free_obj(struct pdf_obj *obj)
+{
+  switch (obj->type) {
+  case PDF_OBJ_STREAM:
+    free(((struct pdf_obj_stream *)obj)->bytes);
+    break;
+  default:
+    break;
+  }
+  free(obj);
 }
 
 void
@@ -35,12 +51,15 @@ void
 pdf_free(struct pdf *pdf)
 {
   struct pdf_indirect_obj_def *obj_def, *next_obj_def;
+  int i;
   obj_def = pdf->defs;
   while (obj_def) {
     next_obj_def = obj_def->next;
     free(obj_def);
     obj_def = next_obj_def;
   }
+  for (i = 0; i < pdf->obj_count; i++)
+    free_obj(pdf->objs[i]);
   free(pdf->objs);
 }
 
@@ -107,15 +126,6 @@ pdf_create_dictionary(struct pdf *pdf)
   return obj;
 }
 
-struct pdf_obj_graphics_stream *
-pdf_create_graphics_stream(struct pdf *pdf)
-{
-  struct pdf_obj_graphics_stream *obj;
-  obj = allocate_obj(pdf, sizeof(struct pdf_obj_graphics_stream));
-  obj->type = PDF_OBJ_GRAPHICS_STREAM;
-  return obj;
-}
-
 struct pdf_obj_indirect *
 pdf_allocate_indirect_obj(struct pdf *pdf)
 {
@@ -152,8 +162,8 @@ pdf_prepend_dictionary(struct pdf *pdf, struct pdf_obj_dictionary *dictionary,
 }
 
 void
-pdf_define_obj(struct pdf *pdf, struct pdf_obj *obj,
-    struct pdf_obj_indirect *ref, int is_root)
+pdf_define_obj(struct pdf *pdf, struct pdf_obj_indirect *ref,
+    struct pdf_obj *obj, int is_root)
 {
   struct pdf_indirect_obj_def *def;
   def = xmalloc(sizeof(struct pdf_indirect_obj_def));
@@ -167,4 +177,16 @@ pdf_define_obj(struct pdf *pdf, struct pdf_obj *obj,
   } else if (is_root) {
     pdf->root = def;
   }
+}
+
+void
+pdf_define_stream(struct pdf *pdf, struct pdf_obj_indirect *ref, long size,
+    char *bytes)
+{
+  struct pdf_obj_stream *stream;
+  stream = allocate_obj(pdf, sizeof(struct pdf_obj_stream));
+  stream->type = PDF_OBJ_STREAM;
+  stream->size = size;
+  stream->bytes = bytes;
+  pdf_define_obj(pdf, ref, (struct pdf_obj *)stream, 0);
 }

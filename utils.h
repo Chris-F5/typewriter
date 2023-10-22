@@ -12,3 +12,4 @@ OR
 
 void *xmalloc(size_t len);
 void *xrealloc(void *p, size_t len);
+void resprintf(char **stream, long *allocated, long *length, const char *format, ...);

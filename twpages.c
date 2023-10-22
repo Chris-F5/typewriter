@@ -28,7 +28,7 @@ pdf_pages_free(struct pdf_pages *pages)
 
 void 
 pdf_pages_add_page(struct pdf *pdf, struct pdf_pages *pages,
-    struct pdf_obj_graphics_stream *content)
+    struct pdf_obj_indirect *content)
 {
   struct pdf_obj_dictionary *page;
   page = pdf_create_dictionary(pdf);
@@ -36,6 +36,8 @@ pdf_pages_add_page(struct pdf *pdf, struct pdf_pages *pages,
       (struct pdf_obj *)pdf_create_name(pdf, "Page"));
   page = pdf_prepend_dictionary(pdf, page, "Parent",
       (struct pdf_obj *)pages->pages_parent_ref);
+  page = pdf_prepend_dictionary(pdf, page, "Contents",
+      (struct pdf_obj *)content);
   if (pages->page_count == pages->page_allocated) {
     pages->page_allocated += 64;
     pages->page_objs = xrealloc(pages->page_objs, pages->page_allocated * sizeof(void *));
@@ -44,10 +46,11 @@ pdf_pages_add_page(struct pdf *pdf, struct pdf_pages *pages,
 }
 
 void
-pdf_pages_define_catalogue(struct pdf *pdf, struct pdf_pages *pages)
+pdf_pages_define_catalogue(struct pdf *pdf, struct pdf_obj_indirect *ref,
+    struct pdf_pages *pages)
 {
   int i;
-  struct pdf_obj_indirect *catalogue_ref, *page_ref;
+  struct pdf_obj_indirect *page_ref;
   struct pdf_obj_array *pages_array, *media_box;
   struct pdf_obj_dictionary *pages_parent, *resources, *catalogue;
 
@@ -66,7 +69,7 @@ pdf_pages_define_catalogue(struct pdf *pdf, struct pdf_pages *pages)
   pages_array = pdf_create_array(pdf);
   for (i = pages->page_count - 1; i >= 0; i--) {
     page_ref = pdf_allocate_indirect_obj(pdf);
-    pdf_define_obj(pdf, pages->page_objs[i], page_ref, 0);
+    pdf_define_obj(pdf, page_ref, pages->page_objs[i], 0);
     pages_array = pdf_prepend_array(pdf, pages_array, (struct pdf_obj *)page_ref);
   }
 
@@ -88,7 +91,6 @@ pdf_pages_define_catalogue(struct pdf *pdf, struct pdf_pages *pages)
   catalogue = pdf_prepend_dictionary(pdf, catalogue, "Pages",
       (struct pdf_obj *)pages->pages_parent_ref);
 
-  catalogue_ref = pdf_allocate_indirect_obj(pdf);
-  pdf_define_obj(pdf, (struct pdf_obj *)pages_parent, pages->pages_parent_ref, 0);
-  pdf_define_obj(pdf, (struct pdf_obj *)catalogue, catalogue_ref, 1);
+  pdf_define_obj(pdf, pages->pages_parent_ref, (struct pdf_obj *)pages_parent, 0);
+  pdf_define_obj(pdf, ref, (struct pdf_obj *)catalogue, 1);
 }

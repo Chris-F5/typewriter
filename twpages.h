@@ -18,5 +18,6 @@ void pdf_pages_init(struct pdf *pdf, struct pdf_pages *pages);
 void pdf_pages_free(struct pdf_pages *pages);
 
 void pdf_pages_add_page(struct pdf *pdf, struct pdf_pages *pages,
-    struct pdf_obj_graphics_stream *content);
-void pdf_pages_define_catalogue(struct pdf *pdf, struct pdf_pages *pages);
+    struct pdf_obj_indirect *content);
+void pdf_pages_define_catalogue(struct pdf *pdf, struct pdf_obj_indirect *ref,
+    struct pdf_pages *pages);

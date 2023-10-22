@@ -16,7 +16,7 @@ static void write_obj_string(FILE *file, struct pdf_obj_string *obj);
 static void write_obj_name(FILE *file, struct pdf_obj_name *obj);
 static void write_obj_array(FILE *file, struct pdf_obj_array *obj);
 static void write_obj_dictionary(FILE *file, struct pdf_obj_dictionary *obj);
-static void write_obj_graphics_stream(FILE *file, struct pdf_obj_graphics_stream *obj);
+static void write_obj_stream(FILE *file, struct pdf_obj_stream *obj);
 static void write_obj_null(FILE *file);
 static void write_obj_indirect(FILE *file, struct pdf_obj_indirect *obj);
 static void write_obj(FILE *file, struct pdf_obj *obj);
@@ -116,10 +116,19 @@ write_obj_dictionary(FILE *file, struct pdf_obj_dictionary *obj)
 }
 
 static void
-write_obj_graphics_stream(FILE *file, struct pdf_obj_graphics_stream *obj)
+write_obj_stream(FILE *file, struct pdf_obj_stream *obj)
 {
-  /* TODO */
-  fprintf(file, "null");
+  long i;
+  fprintf(file, "\
+<<\n\
+  /Filter /ASCIIHexDecode\n\
+  /Length %ld\n\
+  /Length1 %ld\n\
+>>\n\
+stream\n", obj->size * 2, obj->size);
+  for (i = 0; i < obj->size; i++)
+    fprintf(file, "%02x", obj->bytes[i]);
+  fprintf(file, "\nendstream");
 }
 
 static void
@@ -157,8 +166,8 @@ write_obj(FILE *file, struct pdf_obj *obj)
   case PDF_OBJ_DICTIONARY:
     write_obj_dictionary(file, (struct pdf_obj_dictionary *)obj);
     break;
-  case PDF_OBJ_GRAPHICS_STREAM:
-    write_obj_graphics_stream(file, (struct pdf_obj_graphics_stream *)obj);
+  case PDF_OBJ_STREAM:
+    write_obj_stream(file, (struct pdf_obj_stream *)obj);
     break;
   case PDF_OBJ_NULL:
     write_obj_null(file);
@@ -166,6 +175,9 @@ write_obj(FILE *file, struct pdf_obj *obj)
   case PDF_OBJ_INDIRECT:
     write_obj_indirect(file, (struct pdf_obj_indirect *)obj);
     break;
+  default:
+    fprintf(stderr, "twpdf: Unknown object type %d.\n", obj->type);
+    exit(1);
   }
 }
 
