@@ -47,12 +47,12 @@ pdf_pages_add_page(struct pdf *pdf, struct pdf_pages *pages,
 
 void
 pdf_pages_define_catalogue(struct pdf *pdf, struct pdf_obj_indirect *ref,
-    struct pdf_pages *pages)
+    struct pdf_pages *pages, struct pdf_obj *resources)
 {
   int i;
   struct pdf_obj_indirect *page_ref;
   struct pdf_obj_array *pages_array, *media_box;
-  struct pdf_obj_dictionary *pages_parent, *resources, *catalogue;
+  struct pdf_obj_dictionary *pages_parent, *catalogue;
 
   media_box = pdf_create_array(pdf);
   media_box = pdf_prepend_array(pdf, media_box,
@@ -63,8 +63,6 @@ pdf_pages_define_catalogue(struct pdf *pdf, struct pdf_obj_indirect *ref,
       (struct pdf_obj *)pdf_create_integer(pdf, 0));
   media_box = pdf_prepend_array(pdf, media_box,
       (struct pdf_obj *)pdf_create_integer(pdf, 0));
-
-  resources = pdf_create_dictionary(pdf);
 
   pages_array = pdf_create_array(pdf);
   for (i = pages->page_count - 1; i >= 0; i--) {
@@ -81,7 +79,7 @@ pdf_pages_define_catalogue(struct pdf *pdf, struct pdf_obj_indirect *ref,
   pages_parent = pdf_prepend_dictionary(pdf, pages_parent, "Count",
       (struct pdf_obj *)pdf_create_integer(pdf, pages->page_count));
   pages_parent = pdf_prepend_dictionary(pdf, pages_parent, "Resources",
-      (struct pdf_obj *)resources);
+      resources);
   pages_parent = pdf_prepend_dictionary(pdf, pages_parent, "MediaBox",
       (struct pdf_obj *)media_box);
 

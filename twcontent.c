@@ -35,3 +35,23 @@ pdf_content_define(struct pdf *pdf, struct pdf_obj_indirect *ref,
   resprintf(&bytes, &allocated, &size, "ET\n");
   pdf_define_stream(pdf, ref, size, bytes);
 }
+
+struct pdf_obj *
+pdf_content_create_resources(struct pdf *pdf)
+{
+  struct pdf_obj_dictionary *resources, *font_resources, *helvetica;
+  helvetica = pdf_create_dictionary(pdf);
+  helvetica = pdf_prepend_dictionary(pdf, helvetica, "Type",
+      (struct pdf_obj *)pdf_create_name(pdf, "Font"));
+  helvetica = pdf_prepend_dictionary(pdf, helvetica, "Subtype",
+      (struct pdf_obj *)pdf_create_name(pdf, "Type1"));
+  helvetica = pdf_prepend_dictionary(pdf, helvetica, "BaseFont",
+      (struct pdf_obj *)pdf_create_name(pdf, "Helvetica"));
+  font_resources = pdf_create_dictionary(pdf);
+  font_resources = pdf_prepend_dictionary(pdf, font_resources, "F0",
+      (struct pdf_obj *)helvetica);
+  resources = pdf_create_dictionary(pdf);
+  resources = pdf_prepend_dictionary(pdf, resources, "Font",
+      (struct pdf_obj *)font_resources);
+  return (struct pdf_obj *)resources;
+}
