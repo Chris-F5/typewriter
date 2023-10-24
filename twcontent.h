@@ -14,6 +14,7 @@ struct pdf_content {
 };
 
 void pdf_content_init(struct pdf_content *content);
+void pdf_content_reset(struct pdf_content *content);
 void pdf_content_free(struct pdf_content *content);
 
 void pdf_content_write(struct pdf_content *content, const char *format, ...);

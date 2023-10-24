@@ -19,6 +19,15 @@ pdf_content_init(struct pdf_content *content)
 }
 
 void
+pdf_content_reset(struct pdf_content *content)
+{
+  free(content->bytes);
+  content->allocated = 1024;
+  content->length = 0;
+  content->bytes = xmalloc(content->allocated);
+}
+
+void
 pdf_content_free(struct pdf_content *content)
 {
   free(content->bytes);
@@ -51,7 +60,7 @@ pdf_content_create_resources(struct pdf *pdf)
   helvetica = pdf_prepend_dictionary(pdf, helvetica, "Subtype",
       (struct pdf_obj *)pdf_create_name(pdf, "Type1"));
   helvetica = pdf_prepend_dictionary(pdf, helvetica, "BaseFont",
-      (struct pdf_obj *)pdf_create_name(pdf, "Helvetica"));
+      (struct pdf_obj *)pdf_create_name(pdf, "Courier"));
   font_resources = pdf_create_dictionary(pdf);
   font_resources = pdf_prepend_dictionary(pdf, font_resources, "F0",
       (struct pdf_obj *)helvetica);

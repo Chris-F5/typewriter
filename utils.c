@@ -29,14 +29,17 @@ xrealloc(void *p, size_t len)
 void
 revsprintf(char **stream, long *allocated, long *length, const char *format, va_list args)
 {
+  va_list args_copy;
   int written;
+  va_copy(args_copy, args);
   written = vsnprintf(*stream + *length, *allocated - *length, format, args);
   if (written >= *allocated - *length) {
     *allocated += written + 1024 * 4;
     *stream = xrealloc(*stream, *allocated);
-    vsprintf(*stream + *length, format, args);
+    vsprintf(*stream + *length, format, args_copy);
   }
   *length += written;
+  va_end(args_copy);
 }
 
 void

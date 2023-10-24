@@ -3,7 +3,7 @@
  * See LICENSE for license details.
  */
 
-
+#include <stdarg.h>
 #include <stdlib.h>
 
 #include "utils.h"
@@ -24,7 +24,6 @@ pdf_pages_free(struct pdf_pages *pages)
 {
   free(pages->page_objs);
 }
-
 
 void 
 pdf_pages_add_page(struct pdf *pdf, struct pdf_pages *pages,
