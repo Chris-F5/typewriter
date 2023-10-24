@@ -9,10 +9,14 @@
  */
 
 struct pdf_content {
+  long allocated, length;
+  char *bytes;
 };
 
 void pdf_content_init(struct pdf_content *content);
 void pdf_content_free(struct pdf_content *content);
+
+void pdf_content_write(struct pdf_content *content, const char *format, ...);
 
 void pdf_content_define(struct pdf *pdf, struct pdf_obj_indirect *ref,
     struct pdf_content *content);

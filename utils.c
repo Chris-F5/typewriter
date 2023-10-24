@@ -27,11 +27,9 @@ xrealloc(void *p, size_t len)
 }
 
 void
-resprintf(char **stream, long *allocated, long *length, const char *format, ...)
+revsprintf(char **stream, long *allocated, long *length, const char *format, va_list args)
 {
-  va_list args;
   int written;
-  va_start(args, format);
   written = vsnprintf(*stream + *length, *allocated - *length, format, args);
   if (written >= *allocated - *length) {
     *allocated += written + 1024 * 4;
@@ -39,5 +37,13 @@ resprintf(char **stream, long *allocated, long *length, const char *format, ...)
     vsprintf(*stream + *length, format, args);
   }
   *length += written;
+}
+
+void
+resprintf(char **stream, long *allocated, long *length, const char *format, ...)
+{
+  va_list args;
+  va_start(args, format);
+  revsprintf(stream, allocated, length, format, args);
   va_end(args);
 }

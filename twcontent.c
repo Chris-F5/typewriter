@@ -4,6 +4,7 @@
  */
 
 #include <stdlib.h>
+#include <stdarg.h>
 
 #include "utils.h"
 #include "twpdf.h"
@@ -12,28 +13,32 @@
 void
 pdf_content_init(struct pdf_content *content)
 {
+  content->allocated = 1024;
+  content->length = 0;
+  content->bytes = xmalloc(content->allocated);
 }
 
 void
 pdf_content_free(struct pdf_content *content)
 {
+  free(content->bytes);
+}
+
+void
+pdf_content_write(struct pdf_content *content, const char *format, ...)
+{
+  va_list args;
+  va_start(args, format);
+  revsprintf(&content->bytes, &content->allocated, &content->length, format, args);
+  va_end(args);
 }
 
 void
 pdf_content_define(struct pdf *pdf, struct pdf_obj_indirect *ref,
     struct pdf_content *content)
 {
-  long allocated, size;
-  char *bytes;
-  allocated = 1024;
-  size = 0;
-  bytes = xmalloc(allocated);
-  resprintf(&bytes, &allocated, &size, "BT\n");
-  resprintf(&bytes, &allocated, &size, "/F0 12 Tf\n");
-  resprintf(&bytes, &allocated, &size, "1 0 0 1 %d %d Tm\n", 100, 100);
-  resprintf(&bytes, &allocated, &size, "(hello world) Tj\n");
-  resprintf(&bytes, &allocated, &size, "ET\n");
-  pdf_define_stream(pdf, ref, size, bytes);
+  pdf_define_stream(pdf, ref, content->length, content->bytes);
+  content->bytes = NULL; /* Pass ownership to pdf. */
 }
 
 struct pdf_obj *

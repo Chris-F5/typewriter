@@ -22,6 +22,11 @@ main(int argc, char **argv)
   catalogue_ref = pdf_allocate_indirect_obj(&pdf);
   pdf_pages_init(&pdf, &pages);
   pdf_content_init(&content);
+  pdf_content_write(&content, "BT\n");
+  pdf_content_write(&content, "/F0 12 Tf\n");
+  pdf_content_write(&content, "1 0 0 1 %d %d Tm\n", 100, 100);
+  pdf_content_write(&content, "(hello world) Tj\n");
+  pdf_content_write(&content, "ET\n");
   pdf_content_define(&pdf, content_ref, &content);
   resources = pdf_content_create_resources(&pdf);
   pdf_content_free(&content);
