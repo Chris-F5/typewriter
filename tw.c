@@ -10,18 +10,27 @@
 #include "twpages.h"
 #include "twcontent.h"
 
+static const int top_margin = 40;
+static const int bot_margin = 40;
+static const int left_margin = 80;
+
+static const int font_size = 10;
+static const char *tab_expand = "    ";
+
 char line[256];
 
 void
 write_line(struct pdf_content *content, const char *line, int y)
 {
-  pdf_content_write(content, "1 0 0 1 %d %d Tm\n", 40, y);
+  pdf_content_write(content, "1 0 0 1 %d %d Tm\n", left_margin, y);
   pdf_content_write(content, "(");
   for (; *line; line++) switch (*line) {
   case '(':
   case ')':
   case '\\':
     pdf_content_write(content, "\\");
+  case '\t':
+    pdf_content_write(content, "%s", tab_expand);
   default:
     pdf_content_write(content, "%c", *line);
   }
@@ -35,7 +44,7 @@ eat_page(FILE *in, struct pdf_content *content)
   empty = 1;
   row = col = 0;
   pdf_content_write(content, "BT\n");
-  pdf_content_write(content, "/F0 12 Tf\n");
+  pdf_content_write(content, "/F0 %d Tf\n", font_size);
   while ( (c = fgetc(in)) != EOF) {
     empty = 0;
     if (col >= sizeof(line) - 1) {
@@ -44,10 +53,10 @@ eat_page(FILE *in, struct pdf_content *content)
     }
     if (c == '\n') {
       line[col] = '\0';
-      write_line(content, line, 842 - 32 - row * 12);
+      write_line(content, line, 842 - top_margin - (row + 1) * font_size);
       row++;
       col = 0;
-      if (row * 12 + 42 > 842 - 20)
+      if ((row + 1) * font_size + top_margin + bot_margin > 842)
         break;
       continue;
     }
