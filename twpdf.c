@@ -180,13 +180,23 @@ pdf_define_obj(struct pdf *pdf, struct pdf_obj_indirect *ref,
 }
 
 void
-pdf_define_stream(struct pdf *pdf, struct pdf_obj_indirect *ref, long size,
-    char *bytes)
+pdf_define_stream(struct pdf *pdf, struct pdf_obj_indirect *ref,
+    struct pdf_obj_dictionary *dictionary, struct pdf_obj_array *filters,
+    long size, char *bytes)
 {
   struct pdf_obj_stream *stream;
   stream = allocate_obj(pdf, sizeof(struct pdf_obj_stream));
   stream->type = PDF_OBJ_STREAM;
   stream->size = size;
   stream->bytes = bytes;
+  filters = pdf_prepend_array(pdf, filters,
+      (struct pdf_obj *)pdf_create_name(pdf, "ASCIIHexDecode"));
+  dictionary = pdf_prepend_dictionary(pdf, dictionary, "Filter",
+      (struct pdf_obj *)filters);
+  dictionary = pdf_prepend_dictionary(pdf, dictionary, "Length",
+      (struct pdf_obj *)pdf_create_integer(pdf, size * 2));
+  dictionary = pdf_prepend_dictionary(pdf, dictionary, "Length1",
+      (struct pdf_obj *)pdf_create_integer(pdf, size));
+  stream->dictionary = dictionary;
   pdf_define_obj(pdf, ref, (struct pdf_obj *)stream, 0);
 }

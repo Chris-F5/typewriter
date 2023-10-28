@@ -62,6 +62,7 @@ struct pdf_obj_stream {
   enum pdf_obj_type type;
   long size;
   char *bytes;
+  struct pdf_obj_dictionary *dictionary;
 };
 
 struct pdf_obj_indirect {
@@ -104,8 +105,9 @@ struct pdf_obj_dictionary *pdf_prepend_dictionary(struct pdf *pdf,
 
 void pdf_define_obj(struct pdf *pdf, struct pdf_obj_indirect *ref,
     struct pdf_obj *obj, int is_root);
-void pdf_define_stream(struct pdf *pdf, struct pdf_obj_indirect *ref, long size,
-    char *bytes);
+void pdf_define_stream(struct pdf *pdf, struct pdf_obj_indirect *ref,
+    struct pdf_obj_dictionary *dictionary, struct pdf_obj_array *filters,
+    long size, char *bytes);
 
 /* twwrite.c */
 void pdf_write(struct pdf *pdf, const char *fname);

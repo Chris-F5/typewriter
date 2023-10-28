@@ -10,31 +10,31 @@
 #include "utils.h"
 #include "twpdf.h"
 
-static void write_obj_boolean(FILE *file, struct pdf_obj_boolean *obj);
-static void write_obj_integer(FILE *file, struct pdf_obj_integer *obj);
-static void write_obj_string(FILE *file, struct pdf_obj_string *obj);
-static void write_obj_name(FILE *file, struct pdf_obj_name *obj);
-static void write_obj_array(FILE *file, struct pdf_obj_array *obj);
-static void write_obj_dictionary(FILE *file, struct pdf_obj_dictionary *obj);
-static void write_obj_stream(FILE *file, struct pdf_obj_stream *obj);
+static void write_obj_boolean(FILE *file, const struct pdf_obj_boolean *obj);
+static void write_obj_integer(FILE *file, const struct pdf_obj_integer *obj);
+static void write_obj_string(FILE *file, const struct pdf_obj_string *obj);
+static void write_obj_name(FILE *file, const struct pdf_obj_name *obj);
+static void write_obj_array(FILE *file, const struct pdf_obj_array *obj);
+static void write_obj_dictionary(FILE *file, const struct pdf_obj_dictionary *obj);
+static void write_obj_stream(FILE *file, const struct pdf_obj_stream *obj);
 static void write_obj_null(FILE *file);
-static void write_obj_indirect(FILE *file, struct pdf_obj_indirect *obj);
-static void write_obj(FILE *file, struct pdf_obj *obj);
+static void write_obj_indirect(FILE *file, const struct pdf_obj_indirect *obj);
+static void write_obj(FILE *file, const struct pdf_obj *obj);
 
 static void
-write_obj_boolean(FILE *file, struct pdf_obj_boolean *obj)
+write_obj_boolean(FILE *file, const struct pdf_obj_boolean *obj)
 {
   fprintf(file, obj ? "true" : "false");
 }
 
 static void
-write_obj_integer(FILE *file, struct pdf_obj_integer *obj)
+write_obj_integer(FILE *file, const struct pdf_obj_integer *obj)
 {
   fprintf(file, "%d", obj->value);
 }
 
 static void
-write_obj_string(FILE *file, struct pdf_obj_string *obj)
+write_obj_string(FILE *file, const struct pdf_obj_string *obj)
 {
   const unsigned char *c;
   fputc('(', file);
@@ -56,7 +56,7 @@ write_obj_string(FILE *file, struct pdf_obj_string *obj)
 }
 
 static void
-write_obj_name(FILE *file, struct pdf_obj_name *obj)
+write_obj_name(FILE *file, const struct pdf_obj_name *obj)
 {
   const unsigned char *c;
   fputc('/', file);
@@ -91,7 +91,7 @@ write_obj_name(FILE *file, struct pdf_obj_name *obj)
 }
 
 static void
-write_obj_array(FILE *file, struct pdf_obj_array *obj)
+write_obj_array(FILE *file, const struct pdf_obj_array *obj)
 {
   fputc('[', file);
   for (; obj->value; obj = obj->tail) {
@@ -103,7 +103,7 @@ write_obj_array(FILE *file, struct pdf_obj_array *obj)
 }
 
 static void
-write_obj_dictionary(FILE *file, struct pdf_obj_dictionary *obj)
+write_obj_dictionary(FILE *file, const struct pdf_obj_dictionary *obj)
 {
   fprintf(file, "<< ");
   for (; obj->key; obj = obj->tail) {
@@ -116,18 +116,13 @@ write_obj_dictionary(FILE *file, struct pdf_obj_dictionary *obj)
 }
 
 static void
-write_obj_stream(FILE *file, struct pdf_obj_stream *obj)
+write_obj_stream(FILE *file, const struct pdf_obj_stream *obj)
 {
   long i;
-  fprintf(file, "\
-<<\n\
-  /Filter /ASCIIHexDecode\n\
-  /Length %ld\n\
-  /Length1 %ld\n\
->>\n\
-stream\n", obj->size * 2, obj->size);
+  write_obj_dictionary(file, obj->dictionary);
+  fprintf(file, "\nstream\n");
   for (i = 0; i < obj->size; i++)
-    fprintf(file, "%02x", obj->bytes[i]);
+    fprintf(file, "%02x", (unsigned char)obj->bytes[i]);
   fprintf(file, "\nendstream");
 }
 
@@ -138,14 +133,14 @@ write_obj_null(FILE *file)
 }
 
 static void
-write_obj_indirect(FILE *file, struct pdf_obj_indirect *obj)
+write_obj_indirect(FILE *file, const struct pdf_obj_indirect *obj)
 {
   fprintf(file, "%d 0 R", obj->obj_num);
 }
 
 
 static void
-write_obj(FILE *file, struct pdf_obj *obj)
+write_obj(FILE *file, const struct pdf_obj *obj)
 {
   switch (obj->type) {
   case PDF_OBJ_BOOLEAN:
