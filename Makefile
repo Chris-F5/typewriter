@@ -2,7 +2,7 @@ CC=gcc
 CFLAGS=-g -Wall
 LDFLAGS=
 
-tw: tw.o utils.o twpdf.o twwrite.o twpages.o twcontent.o twjpeg.o
+tw: tw.o utils.o twpdf.o twwrite.o twpages.o twcontent.o twjpeg.o stralloc.o
 	$(CC) $(LDFLAGS) $^ -o $@
 
 utils.o: utils.c utils.h
@@ -24,4 +24,7 @@ twcontent.o: twcontent.c utils.h twpdf.h twcontent.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 twjpeg.o: twjpeg.c utils.h twpdf.h twjpeg.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+stralloc.o: stralloc.c utils.h stralloc.h
 	$(CC) $(CFLAGS) -c $< -o $@

@@ -30,5 +30,5 @@ void pdf_content_write_image(struct pdf_content *content, const char *name,
     int x, int y, int w, int h);
 
 void pdf_content_define(struct pdf *pdf, struct pdf_obj_indirect *ref,
-struct pdf_content *content);
+    struct pdf_content *content);
 struct pdf_obj *pdf_content_create_resources(struct pdf *pdf, struct pdf_obj_dictionary *xobjects);
