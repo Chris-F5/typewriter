@@ -61,6 +61,13 @@ struct document {
 static int gizmo_height(const struct gizmo *gizmo);
 static void relax_glue(struct gizmo_glue *start, struct gizmo_glue *sentinel);
 static void optimise_breaks(struct document *doc);
+static void init_document(struct document *doc);
+static void free_document(struct document *doc);
+static void build_document(struct document *doc);
+static void put_text(struct document *doc, const char *str);
+static void put_glue(struct document *doc, int break_penalty, int no_break_height);
+static int read_line(FILE *file, char **line, int *allocated);
+static void read_file(struct document *doc, FILE *file);
 
 static const int font_size = 9;
 static const int top_margin = 40;
@@ -68,7 +75,6 @@ static const int bot_margin = 40;
 static const int left_margin = 80;
 
 struct stralloc stralloc;
-char line[256];
 
 static int
 gizmo_height(const struct gizmo *gizmo)
@@ -261,19 +267,40 @@ put_glue(struct document *doc, int break_penalty, int no_break_height)
   doc->gizmos_end = &glue->next;
 }
 
+static int
+read_line(FILE *file, char **line, int *allocated)
+{
+  int c, len;
+  len = 0;
+  while ( (c = fgetc(file)) != EOF) {
+    if (len >= *allocated) {
+      *allocated += 256;
+      *line = xrealloc(*line, *allocated);
+    }
+    switch (c) {
+    case '\r':
+      continue;
+    case '\n':
+      (*line)[len] = '\0';
+      return 1;
+    }
+    (*line)[len++] = c;
+  }
+  (*line)[len] = '\0';
+  return 0;
+}
+
 static void
 read_file(struct document *doc, FILE *file)
 {
-  char *line;
-  size_t line_allocated;
-  ssize_t read;
-  char *str;
+  char *line, *str;
+  int line_allocated;
 
   line_allocated = 256;
   line = xmalloc(line_allocated);
-  while ( (read = getline(&line, &line_allocated, stdin)) != -1) {
+  while (read_line(stdin, &line, &line_allocated)) {
     str = stralloc_alloc(&stralloc, line);
-    if (line[0] == '\n' || line[0] == '\r' || line[0] == '\0') {
+    if (line[0] == '\0') {
       put_glue(doc, 0, font_size);
       continue;
     }
