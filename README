@@ -8,13 +8,12 @@ Example:
 	cal -y | tw -o calendar.pdf
 
 Project Features/Problems:
-	- Fontconfig is the only runtime dependency.
-	- Automatic page breaking.
-	- Uses a custom TrueType parser and PDF builder.
+	- No external libraries.
+	- Automatic 'smart' page breaking.
+	- Custom PDF library.
 	- Only ASCII characters are supported.
-	- Only Monospace, TrueType fonts are supported.
+	- Only built-in PDF fonts are supported.
 
 Project Goals:
-	- Separate PDF library from application.
 	- Simple codebase that can be patched for additional features.
 	- Support unicode characters.
