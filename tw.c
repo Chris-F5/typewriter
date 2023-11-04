@@ -69,10 +69,7 @@ static void put_glue(struct document *doc, int break_penalty, int no_break_heigh
 static int read_line(FILE *file, char **line, int *allocated);
 static void read_file(struct document *doc, FILE *file);
 
-static const int font_size = 9;
-static const int top_margin = 40;
-static const int bot_margin = 40;
-static const int left_margin = 80;
+#include "config.h"
 
 struct stralloc stralloc;
 

@@ -5,10 +5,13 @@ LDFLAGS=
 tw: tw.o utils.o twpdf.o twwrite.o twpages.o twcontent.o twjpeg.o stralloc.o
 	$(CC) $(LDFLAGS) $^ -o $@
 
+config.h:
+	cp config.def.h $@
+
 utils.o: utils.c utils.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
-tw.o: tw.c utils.h twpdf.h
+tw.o: tw.c config.h utils.h twpdf.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 twpdf.o: twpdf.c utils.h twpdf.h
