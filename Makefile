@@ -2,35 +2,29 @@ CC=gcc
 CFLAGS=-g -Wall
 LDFLAGS=
 
-tw: tw.o utils.o twpdf.o twwrite.o twpages.o twcontent.o twjpeg.o document.o stralloc.o
-	$(CC) $(LDFLAGS) $^ -o $@
+SRC = utils.c twpdf.c twwrite.c twpages.c twcontent.c twjpeg.c document.c stralloc.c
+OBJ = $(SRC:.c=.o)
+
+.PHONY: all
+
+all: tw
+
+tw: tw.o $(OBJ)
+	$(CC) $(LDFLAGS) -o $@ $^
 
 config.h:
 	cp config.def.h $@
 
-utils.o: utils.c utils.h
-	$(CC) $(CFLAGS) -c $< -o $@
+.c.o:
+	$(CC) $(CFLAGS) -c $<
 
-tw.o: tw.c config.h utils.h twpdf.h document.h stralloc.h
-	$(CC) $(CFLAGS) -c $< -o $@
+tw.o: config.h utils.h twpdf.h document.h stralloc.h
 
-twpdf.o: twpdf.c utils.h twpdf.h
-	$(CC) $(CFLAGS) -c $< -o $@
-
-twwrite.o: twwrite.c utils.h twpdf.h
-	$(CC) $(CFLAGS) -c $< -o $@
-
-twpages.o: twpages.c utils.h twpdf.h twpages.h
-	$(CC) $(CFLAGS) -c $< -o $@
-
-twcontent.o: twcontent.c utils.h twpdf.h twcontent.h
-	$(CC) $(CFLAGS) -c $< -o $@
-
-twjpeg.o: twjpeg.c utils.h twpdf.h twjpeg.h
-	$(CC) $(CFLAGS) -c $< -o $@
-
-document.o: document.c utils.h twpdf.h twcontent.h twjpeg.h twpages.h document.h
-	$(CC) $(CFLAGS) -c $< -o $@
-
-stralloc.o: stralloc.c utils.h stralloc.h
-	$(CC) $(CFLAGS) -c $< -o $@
+utils.o: utils.h
+twpdf.o: utils.h twpdf.h
+twwrite.o: utils.h twpdf.h
+twpages.o: utils.h twpdf.h twpages.h
+twcontent.o: utils.h twpdf.h twcontent.h
+twjpeg.o: utils.h twpdf.h twjpeg.h
+document.o: utils.h twpdf.h twcontent.h twjpeg.h twpages.h document.h
+stralloc.o: utils.h stralloc.h
