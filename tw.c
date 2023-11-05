@@ -37,7 +37,7 @@ struct gizmo_image {
   int type;
   struct gizmo *next;
   int w, h;
-  char *name;
+  const char *name;
 };
 
 struct gizmo_glue {
@@ -249,6 +249,24 @@ put_text(struct document *doc, const char *str)
 }
 
 static void
+put_image(struct document *doc, const char *fname, int w)
+{
+  struct pdf_jpeg_info image_info;
+  struct gizmo_image *image;
+  fname = stralloc_alloc(&stralloc, fname);
+  doc->xobjects = pdf_prepend_dictionary(&doc->pdf, doc->xobjects, fname,
+      (struct pdf_obj *)pdf_jpeg_define(&doc->pdf, fname, &image_info));
+  image = xmalloc(sizeof(struct gizmo_image));
+  image->type = GIZMO_IMAGE;
+  image->next = NULL;
+  image->w = w;
+  image->h = ((float)w / (float)image_info.width) * (float)image_info.height;
+  image->name = fname;
+  *doc->gizmos_end = (struct gizmo *)image;
+  doc->gizmos_end = &image->next;
+}
+
+static void
 put_glue(struct document *doc, int break_penalty, int no_break_height)
 {
   struct gizmo_glue *glue;
@@ -314,6 +332,7 @@ main(int argc, char **argv)
   stralloc_init(&stralloc);
   init_document(&doc);
 
+  put_image(&doc, "image1.jpg", 595 - left_margin - right_margin);
   read_file(&doc, stdin);
 
   optimise_breaks(&doc);
