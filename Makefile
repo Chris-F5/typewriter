@@ -2,7 +2,7 @@ CC=gcc
 CFLAGS=-g -Wall
 LDFLAGS=
 
-tw: tw.o utils.o twpdf.o twwrite.o twpages.o twcontent.o twjpeg.o stralloc.o
+tw: tw.o utils.o twpdf.o twwrite.o twpages.o twcontent.o twjpeg.o document.o stralloc.o
 	$(CC) $(LDFLAGS) $^ -o $@
 
 config.h:
@@ -11,7 +11,7 @@ config.h:
 utils.o: utils.c utils.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
-tw.o: tw.c config.h utils.h twpdf.h
+tw.o: tw.c config.h utils.h twpdf.h document.h stralloc.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 twpdf.o: twpdf.c utils.h twpdf.h
@@ -27,6 +27,9 @@ twcontent.o: twcontent.c utils.h twpdf.h twcontent.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 twjpeg.o: twjpeg.c utils.h twpdf.h twjpeg.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+document.o: document.c utils.h twpdf.h twcontent.h twjpeg.h twpages.h document.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 stralloc.o: stralloc.c utils.h stralloc.h
