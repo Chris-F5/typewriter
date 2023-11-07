@@ -4,21 +4,20 @@ LDFLAGS=
 
 SRC = utils.c twpdf.c twwrite.c twpages.c twcontent.c twjpeg.c document.c stralloc.c
 OBJ = $(SRC:.c=.o)
+TARGETS = $(shell find . -type f -name 'tw-*.c' | sed 's/\.c$$//')
 
 .PHONY: all
 
-all: tw
+all: $(TARGETS)
 
-tw: tw.o $(OBJ)
-	$(CC) $(LDFLAGS) -o $@ $^
+$(TARGETS): tw-%: tw-%.o $(OBJ)
+	$(CC) $(LDFLAGS) -o $@ $(OBJ) $<
 
-config.h:
-	cp config.def.h $@
-
-.c.o:
+tw-%.o: tw-%.c *.h
 	$(CC) $(CFLAGS) -c $<
 
-tw.o: config.h utils.h twpdf.h document.h stralloc.h
+$(OBJ): %.o: %.c
+	$(CC) $(CFLAGS) -c $<
 
 utils.o: utils.h
 twpdf.o: utils.h twpdf.h

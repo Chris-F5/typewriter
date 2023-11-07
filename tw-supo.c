@@ -3,9 +3,10 @@
  * See LICENSE for license details.
  */
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdarg.h>
+#include <string.h>
 
 #include "utils.h"
 #include "twpdf.h"
@@ -17,7 +18,11 @@ static void read_file(struct document *doc, FILE *file);
 
 struct stralloc stralloc;
 
-#include "config.h"
+static const int font_size = 9;
+static const int top_margin = 40;
+static const int bot_margin = 40;
+static const int left_margin = 80;
+static const int right_margin = 80;
 
 static int
 read_line(FILE *file, char **line, int *allocated)
@@ -52,12 +57,17 @@ read_file(struct document *doc, FILE *file)
   line = xmalloc(line_allocated);
   while (read_line(stdin, &line, &line_allocated)) {
     str = stralloc_alloc(&stralloc, line);
-    if (line[0] == '\0') {
-      put_glue(doc, 0, font_size);
-      continue;
+    if (str[0] == '\0') {
+      put_glue(doc, 1000, font_size);
+    } else if (strcmp(str, "---") == 0) {
+      put_glue(doc, 0, 0);
+    } else if (strncmp(str, "!IMAGE ", strlen("!IMAGE ")) == 0) {
+      str += strlen("!IMAGE ");
+      put_glue(doc, 1000, font_size / 2);
+      put_image(doc, str, 595 - left_margin - right_margin);
+    } else {
+      put_text(doc, str, font_size);
     }
-    put_text(doc, str, font_size);
-    put_glue(doc, font_size * 12, 0);
   }
   free(line);
 }
@@ -69,7 +79,6 @@ main(int argc, char **argv)
   stralloc_init(&stralloc);
   init_document(&doc, top_margin, bot_margin, left_margin);
 
-  put_image(&doc, "image1.jpg", 595 - left_margin - right_margin);
   read_file(&doc, stdin);
 
   optimise_breaks(&doc);
