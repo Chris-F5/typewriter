@@ -2,7 +2,7 @@ CC=gcc
 CFLAGS=-g -Wall
 LDFLAGS=
 
-SRC = utils.c twpdf.c twwrite.c twpages.c twcontent.c twjpeg.c document.c stralloc.c
+SRC = utils.c twpdf.c twwrite.c twpages.c twcontent.c twjpeg.c document.c stralloc.c arg.c
 OBJ = $(SRC:.c=.o)
 TARGETS = $(shell find . -type f -name 'tw-*.c' | sed 's/\.c$$//')
 
@@ -19,6 +19,7 @@ tw-%.o: tw-%.c *.h
 $(OBJ): %.o: %.c
 	$(CC) $(CFLAGS) -c $<
 
+arg.o: arg.h
 utils.o: utils.h
 twpdf.o: utils.h twpdf.h
 twwrite.o: utils.h twpdf.h

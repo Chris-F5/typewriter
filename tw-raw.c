@@ -3,25 +3,27 @@
  * See LICENSE for license details.
  */
 
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdarg.h>
+#include <unistd.h>
 
 #include "utils.h"
 #include "twpdf.h"
 #include "document.h"
 #include "stralloc.h"
+#include "arg.h"
 
 static int read_line(FILE *file, char **line, int *allocated);
 static void read_file(struct document *doc, FILE *file);
 
 struct stralloc stralloc;
 
-static const int font_size = 9;
-static const int top_margin = 40;
-static const int bot_margin = 40;
-static const int left_margin = 80;
-static const char *tab_expand = "    ";
+static int font_size;
+static int top_margin;
+static int bot_margin;
+static int left_margin;
+static const char *tab_expand;
 
 static int
 read_line(FILE *file, char **line, int *allocated)
@@ -71,6 +73,31 @@ int
 main(int argc, char **argv)
 {
   struct document doc;
+  int c;
+
+  font_size = 9;
+  top_margin = 40;
+  bot_margin = 40;
+  left_margin = 80;
+  tab_expand = "    ";
+  while ( (c = next_opt(argc, argv, "s#v#h#t*")) != -1) {
+    switch (c) {
+    case 's':
+      font_size = opt_arg_int;
+      break;
+    case 'v':
+      top_margin = opt_arg_int;
+      bot_margin = opt_arg_int;
+      break;
+    case 'h':
+      left_margin = opt_arg_int;
+      break;
+    case 't':
+      tab_expand = opt_arg_string;
+      break;
+    }
+  }
+
   stralloc_init(&stralloc);
   init_document(&doc, top_margin, bot_margin, left_margin);
 
