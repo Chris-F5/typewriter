@@ -58,14 +58,15 @@ read_file(struct document *doc, FILE *file)
   while (read_line(stdin, &line, &line_allocated)) {
     str = stralloc_alloc(&stralloc, line);
     if (str[0] == '\0') {
-      put_glue(doc, 1000, font_size);
+      put_glue(doc, font_size * 30, font_size);
     } else if (strcmp(str, "---") == 0) {
       put_glue(doc, 0, 0);
     } else if (strncmp(str, "!IMAGE ", strlen("!IMAGE ")) == 0) {
       str += strlen("!IMAGE ");
-      put_glue(doc, 1000, font_size / 2);
+      put_glue(doc, font_size * 40, font_size / 2);
       put_image(doc, str, 595 - left_margin - right_margin);
     } else {
+      put_glue(doc, font_size * 40, font_size / 2);
       put_text(doc, str, font_size);
     }
   }
