@@ -74,13 +74,15 @@ main(int argc, char **argv)
 {
   struct document doc;
   int c;
+  const char *output_fname;
 
   font_size = 9;
   top_margin = 40;
   bot_margin = 40;
   left_margin = 80;
   tab_expand = "    ";
-  while ( (c = next_opt(argc, argv, "s#v#h#t*")) != -1) {
+  output_fname = "output.pdf";
+  while ( (c = next_opt(argc, argv, "s#v#h#t*o*")) != -1) {
     switch (c) {
     case 's':
       font_size = opt_arg_int;
@@ -95,6 +97,9 @@ main(int argc, char **argv)
     case 't':
       tab_expand = opt_arg_string;
       break;
+    case 'o':
+      output_fname = opt_arg_string;
+      break;
     }
   }
 
@@ -105,7 +110,7 @@ main(int argc, char **argv)
 
   optimise_breaks(&doc);
   build_document(&doc);
-  pdf_write(&doc.pdf, "output.pdf");
+  pdf_write(&doc.pdf, output_fname);
 
   free_document(&doc);
   stralloc_free(&stralloc);

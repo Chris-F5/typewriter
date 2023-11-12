@@ -12,6 +12,7 @@
 #include "twpdf.h"
 #include "document.h"
 #include "stralloc.h"
+#include "arg.h"
 
 static int read_line(FILE *file, char **line, int *allocated);
 static void read_file(struct document *doc, FILE *file);
@@ -77,6 +78,18 @@ int
 main(int argc, char **argv)
 {
   struct document doc;
+  const char *output_fname;
+  int c;
+
+  output_fname = "output.pdf";
+  while ( (c = next_opt(argc, argv, "o*")) != -1) {
+    switch (c) {
+    case 'o':
+      output_fname = opt_arg_string;
+      break;
+    }
+  }
+
   stralloc_init(&stralloc);
   init_document(&doc, top_margin, bot_margin, left_margin);
 
@@ -84,7 +97,7 @@ main(int argc, char **argv)
 
   optimise_breaks(&doc);
   build_document(&doc);
-  pdf_write(&doc.pdf, "output.pdf");
+  pdf_write(&doc.pdf, output_fname);
 
   free_document(&doc);
   stralloc_free(&stralloc);
