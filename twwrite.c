@@ -223,8 +223,11 @@ pdf_write(struct pdf *pdf, const char *fname)
   fprintf(file, "%ld\n", xref_offset);
   fprintf(file, "%%%%EOF");
 
-  /* TODO: Check for file write errors. */
-  
+  if (ferror(file)) {
+    fprintf(stderr, "twpdf: Error writing file %s.\n", fname);
+    exit(1);
+  }
+
   free(xref_obj_offsets);
   fclose(file);
 }
