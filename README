@@ -7,12 +7,14 @@ Example:
 	# Make a PDF calendar.
 	cal -y | tw-raw
 
-Project Features/Problems:
-	- No external libraries.
+Whats Great:
+	- Great for printing raw text files.
 	- Automatic 'smart' page breaking.
-	- Custom PDF library.
-	- Only ASCII characters are supported.
-	- Only built-in PDF fonts are supported.
+	- Supports images.
+	- Easy to create your own formatter.
+	- No external libraries.
 
-Project Goals:
-	- Support unicode characters.
+Problems:
+	- Does not support unicode characters.
+	- Only supports Baseline JPEG images.
+	- Only built-in PDF fonts are supported.
