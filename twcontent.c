@@ -42,6 +42,12 @@ switch_font_size(struct pdf_content *content, int size) {
   }
 }
 
+/*
+ * TODO: It doesent really make sense that this file and twwrite.c both
+ * implement pdf object serialization.
+ * A PDF content stream is just a sequence of PDF objects (7.8.2).
+ */
+
 static void
 escaped_string(struct pdf_content *content, const char *string)
 {
@@ -56,6 +62,38 @@ escaped_string(struct pdf_content *content, const char *string)
   }
   write_content(content, ")");
 }
+
+static void
+escaped_name(struct pdf_content *content, const char *string)
+{
+  const unsigned char *c;
+  write_content(content, "/");
+  for (c = (const unsigned char *)string; *c; c++) {
+    switch (*c) {
+    case '\t':
+    case '\n':
+    case '\f':
+    case '\r':
+    case ' ':
+    case '(':
+    case ')':
+    case '<':
+    case '>':
+    case '[':
+    case ']':
+    case '{':
+    case '}':
+    case '/':
+    case '%':
+    case '#':
+      write_content(content, "#%02x", *c);
+      break;
+    default:
+      write_content(content, "%c", *c);
+    }
+  }
+}
+
 
 void
 pdf_content_init(struct pdf_content *content)
@@ -100,8 +138,8 @@ pdf_content_write_image(struct pdf_content *content, const char *name, int x,
   switch_mode(content, PDF_CONTENT_MODE_PAGE);
   write_content(content, "q\n");
   write_content(content, "%d 0 0 %d %d %d cm\n", w, h, x, y);
-  /* TODO: escape name. */
-  write_content(content, "/%s Do\n", name);
+  escaped_name(content, name);
+  write_content(content, " Do\n", name);
   write_content(content, "Q\n");
 }
 
