@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
 
 #include "utils.h"
 #include "twpdf.h"
@@ -73,8 +74,8 @@ int
 main(int argc, char **argv)
 {
   struct document doc;
-  int c;
   const char *output_fname;
+  int c;
 
   font_size = 9;
   top_margin = 40;
@@ -96,6 +97,10 @@ main(int argc, char **argv)
       break;
     case 't':
       tab_expand = opt_arg_string;
+      if (strlen(tab_expand) > 32) {
+        fprintf(stderr, "Tab expand too long.\n");
+        exit(1);
+      }
       break;
     case 'o':
       output_fname = opt_arg_string;

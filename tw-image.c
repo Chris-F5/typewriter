@@ -19,30 +19,36 @@ static void read_file(struct document *doc, FILE *file);
 
 struct stralloc stralloc;
 
-static const int font_size = 9;
-static const int top_margin = 40;
-static const int bot_margin = 40;
-static const int left_margin = 80;
-static const int right_margin = 80;
+static int font_size;
+static int top_margin;
+static int bot_margin;
+static int left_margin;
+static int right_margin;
+static const char *tab_expand;
 
 static int
 read_line(FILE *file, char **line, int *allocated)
 {
-  int c, len;
+  int c, len, i;
   len = 0;
   while ( (c = fgetc(file)) != EOF) {
-    if (len >= *allocated) {
+    if (len + 64 >= *allocated) {
       *allocated += 256;
       *line = xrealloc(*line, *allocated);
     }
     switch (c) {
     case '\r':
-      continue;
+      break;
     case '\n':
       (*line)[len] = '\0';
       return 1;
+    case '\t':
+      for (i = 0; tab_expand[i] != '\0'; i++)
+        (*line)[len++] = tab_expand[i];
+      break;
+    default:
+      (*line)[len++] = c;
     }
-    (*line)[len++] = c;
   }
   (*line)[len] = '\0';
   return 0;
@@ -81,9 +87,33 @@ main(int argc, char **argv)
   const char *output_fname;
   int c;
 
+  font_size = 9;
+  top_margin = 40;
+  bot_margin = 40;
+  left_margin = 80;
+  right_margin = 80;
+  tab_expand = "    ";
   output_fname = "output.pdf";
-  while ( (c = next_opt(argc, argv, "o*")) != -1) {
+  while ( (c = next_opt(argc, argv, "s#v#h#t*o*")) != -1) {
     switch (c) {
+    case 's':
+      font_size = opt_arg_int;
+      break;
+    case 'v':
+      top_margin = opt_arg_int;
+      bot_margin = opt_arg_int;
+      break;
+    case 'h':
+      left_margin = opt_arg_int;
+      right_margin = opt_arg_int;
+      break;
+    case 't':
+      tab_expand = opt_arg_string;
+      if (strlen(tab_expand) > 32) {
+        fprintf(stderr, "Tab expand too long.\n");
+        exit(1);
+      }
+      break;
     case 'o':
       output_fname = opt_arg_string;
       break;
