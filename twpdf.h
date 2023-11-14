@@ -3,11 +3,6 @@
  * See LICENSE for license details.
  */
 
-/*
- * TODO:
- * Generally, lines are limited to 255 chars (7.5).
- */
-
 enum pdf_obj_type {
   PDF_OBJ_BOOLEAN         = 0,
   PDF_OBJ_INTEGER         = 1,

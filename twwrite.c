@@ -97,7 +97,7 @@ write_obj_array(FILE *file, const struct pdf_obj_array *obj)
   for (; obj->value; obj = obj->tail) {
     write_obj(file, obj->value);
     if (obj->tail->value)
-      fputc(' ', file);
+      fputc('\n', file);
   }
   fputc(']', file);
 }
@@ -110,7 +110,7 @@ write_obj_dictionary(FILE *file, const struct pdf_obj_dictionary *obj)
     write_obj_name(file, obj->key);
     fputc(' ', file);
     write_obj(file, obj->value);
-    fputc(' ', file);
+    fputc('\n', file);
   }
   fprintf(file, ">>");
 }
