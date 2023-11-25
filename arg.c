@@ -49,7 +49,7 @@ next_opt(int argc, char **argv, const char *opt_string)
     return opt_string[0];
   }
   if (opt[1] == '\0')
-    opt_arg_string = argv[opt_index + 1];
+    opt_arg_string = argv[++opt_index];
   else
     opt_arg_string = opt + 1;
   if (opt_arg_string == NULL || opt_arg_string[0] == '\0') {
@@ -71,6 +71,6 @@ next_opt(int argc, char **argv, const char *opt_string)
     fprintf(stderr, "Invalid opt_string argument type %c.\n", opt_string[1]);
     exit(1);
   }
-  opt_index += 2;
+  opt_index++;
   return *opt_string;
 }
