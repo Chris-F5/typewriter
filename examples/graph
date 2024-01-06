@@ -1,0 +1,23 @@
+This document demonstrates how a graph can generated with python and inserted
+into the PDF document. See the Makefile for what commands must be run.
+    The &BEGIN and &END lines are instructions for inline_script.py, the
+enclosed text is passed to the program stated after &BEGIN.
+
+Here is the graph:
+
+&BEGIN python3
+import numpy as np
+import matplotlib.pyplot as plt
+
+file_name = 'graph.jpg'
+
+fig,ax = plt.subplots()
+x = np.linspace(0,10,100)
+y = np.sin(x)
+ax.plot(x, y)
+
+plt.savefig(file_name)
+print(f'!IMAGE {file_name}')
+&END
+
+The rest of the document can continue as normal.
