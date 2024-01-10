@@ -58,7 +58,8 @@ static void
 read_file(struct document *doc, FILE *file)
 {
   char *line, *str;
-  int line_allocated;
+  int line_allocated, image_size;
+  image_size = 595 - left_margin - right_margin;
 
   line_allocated = 256;
   line = xmalloc(line_allocated);
@@ -68,10 +69,13 @@ read_file(struct document *doc, FILE *file)
       put_glue(doc, font_size * 30, font_size);
     } else if (strcmp(str, "---") == 0) {
       put_glue(doc, 0, 0);
+    } else if (strncmp(str, "!IMAGE_SIZE ", strlen("!IMAGE_SIZE ")) == 0) {
+      str += strlen("!IMAGE_SIZE ");
+      image_size = atoi(str);
     } else if (strncmp(str, "!IMAGE ", strlen("!IMAGE ")) == 0) {
       str += strlen("!IMAGE ");
       put_glue(doc, font_size * 40, font_size / 2);
-      put_image(doc, str, 595 - left_margin - right_margin);
+      put_image(doc, str, image_size);
     } else {
       put_glue(doc, font_size * 40, font_size / 2);
       put_text(doc, str, font_size);
